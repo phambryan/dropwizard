@@ -43,12 +43,12 @@ public class HttpConfiguration {
         SELECT_CHANNEL_SSL
     }
 
-    @Min(1025)
+    @Min(1)
     @Max(65535)
     @JsonProperty
     private int port = 8080;
 
-    @Min(1025)
+    @Min(1)
     @Max(65535)
     @JsonProperty
     private int adminPort = 8081;
