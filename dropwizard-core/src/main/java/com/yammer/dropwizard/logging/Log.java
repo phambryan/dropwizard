@@ -48,9 +48,11 @@ public class Log {
      * @param logger    a Log4j {@link Logger}
      * @return a {@link Log} instance with the same name as {@code logger}
      */
+/*
     public static Log forLog4jLogger(org.apache.log4j.Logger logger) {
         return named(logger.getName());
     }
+*/
 
     /**
      * Returns a {@link Log} instance with the same name as the given slf4j {@link org.slf4j.Logger}
@@ -83,7 +85,7 @@ public class Log {
     public void setLevel(Level level) {
         logger.setLevel(level);
     }
-
+/*
     @Deprecated
     public void setLevel(org.apache.log4j.Level level) {
         final String s = level.toString().toUpperCase(Locale.US);
@@ -92,7 +94,7 @@ public class Log {
         }
         logger.setLevel(Level.toLevel(s));
     }
-
+*/
     // TRACE
 
     public boolean isTraceEnabled() {
