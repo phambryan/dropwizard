@@ -1,11 +1,10 @@
 package com.yammer.dropwizard.logging;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.helpers.MessageFormatter;
 
-import java.util.Locale;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
 
 /**
  * A logger class which provides SLF4J-style formatting without SLF4J's less-than-pleasant API.
@@ -42,17 +41,6 @@ public class Log {
         return forSlf4jLogger(LoggerFactory.getLogger(name));
     }
 
-    /**
-     * Returns a {@link Log} instance with the same name as the given Log4j {@link Logger} instance.
-     *
-     * @param logger    a Log4j {@link Logger}
-     * @return a {@link Log} instance with the same name as {@code logger}
-     */
-/*
-    public static Log forLog4jLogger(org.apache.log4j.Logger logger) {
-        return named(logger.getName());
-    }
-*/
 
     /**
      * Returns a {@link Log} instance with the same name as the given slf4j {@link org.slf4j.Logger}
@@ -85,16 +73,6 @@ public class Log {
     public void setLevel(Level level) {
         logger.setLevel(level);
     }
-/*
-    @Deprecated
-    public void setLevel(org.apache.log4j.Level level) {
-        final String s = level.toString().toUpperCase(Locale.US);
-        if ("FATAL".equals(s)) {
-            logger.setLevel(Level.ERROR);
-        }
-        logger.setLevel(Level.toLevel(s));
-    }
-*/
     // TRACE
 
     public boolean isTraceEnabled() {
