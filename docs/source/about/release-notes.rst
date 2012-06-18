@@ -11,7 +11,7 @@ v0.4.1-SNAPSHOT
 
 * Fixed type parameter resolution in for subclasses of subclasses of ``ConfiguredCommand``.
 * Upgraded to Jackson 1.9.7.
-* Upgraded to Logback 1.0.5, with asynchronous logging.
+* Upgraded to Logback 1.0.6, with asynchronous logging.
 * Upgraded to Hibernate Validator 4.3.0.
 * Upgraded to JDBI 2.34.
 * Upgraded to Jetty 8.1.4.
@@ -24,8 +24,9 @@ v0.4.1-SNAPSHOT
 * Upgraded to Apache HttpClient 4.2.
 * Improved performance of ``AssetServlet``.
 * Added ``withBundle`` to ``ScalaService`` to enable bundle mix-ins.
-* Upgraded to SLF4J 1.6.5.
+* Upgraded to SLF4J 1.6.6.
 * Enabled configuration-parameterized Jersey containers.
+* Upgraded to Jackson Guava 1.9.1, with support for ``Optional``.
 
 .. _rel-0.4.0:
 
