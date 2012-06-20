@@ -4,10 +4,19 @@
 Release Notes
 #############
 
+.. _rel-0.4.2:
+
+v0.4.2: Jun 20 2012
+===================
+
+* Fixed ``JsonProcessingExceptionMapper``. Now returns human-readable error messages for malformed
+  or invalid JSON as a ``400 Bad Request``. Also handles problems with JSON generation and object
+  mapping in a developer-friendly way.
+
 .. _rel-0.4.1:
 
-v0.4.1-SNAPSHOT
-===============
+v0.4.1: Jun 19 2012
+===================
 
 * Fixed type parameter resolution in for subclasses of subclasses of ``ConfiguredCommand``.
 * Upgraded to Jackson 1.9.7.
@@ -27,6 +36,8 @@ v0.4.1-SNAPSHOT
 * Upgraded to SLF4J 1.6.6.
 * Enabled configuration-parameterized Jersey containers.
 * Upgraded to Jackson Guava 1.9.1, with support for ``Optional``.
+* Fixed error message in ``AssetBundle``.
+* Fixed ``WebApplicationException``s being thrown by ``JerseyClient``.
 
 .. _rel-0.4.0:
 
