@@ -17,6 +17,7 @@ Many, many thanks to:
 * `Christopher Currie <https://github.com/christophercurrie>`_
 * `Christopher Elkins <https://github.com/celkins>`_
 * `Collin VanDyck <https://github.com/collinvandyck>`_
+* `David Stendardi <https://github.com/dstendardi>`_
 * `Eric Tschetter <https://github.com/metamx>`_
 * `Fredrik Sundberg <https://github.com/KingBuzzer>`_
 * `James Ward <https://github.com/jamesward>`_
@@ -25,6 +26,7 @@ Many, many thanks to:
 * `Michael Fairley <https://github.com/michaelfairley>`_
 * `Nick Telford <https://github.com/nicktelford>`_
 * `Sam Perman <https://github.com/samperman>`_
+* `Sam Quigley <https://github.com/emerose>`_
 * `Tatu Saloranta <https://github.com/cowtowncoder>`_
 * `Ted Nyman <https://github.com/tnm>`_
 * `Tom Crayford <https://github.com/tcrayford>`_
