@@ -10,8 +10,12 @@ import ch.qos.logback.classic.Logger;
  * A logger class which provides SLF4J-style formatting without SLF4J's less-than-pleasant API.
  *
  * <code>
+ *
+ * // Explicit class specification
  * private static final Log LOG = Log.forClass(Thingy.class);
  *
+ * // Or, automatic class specification
+ * private static final Log LOG = Log.forThisClass();
  * ...
  *
  * LOG.debug("Simple usage: {} / {}", a, b);
@@ -21,7 +25,22 @@ import ch.qos.logback.classic.Logger;
  */
 @SuppressWarnings("UnusedDeclaration")
 public class Log {
-    /**
+
+	/**
+	 * Returns a {@link Log} instance for the current class.
+	 * The current class is determined in the static context by inspecting the stack.
+	 * Further details about this approach may be found
+	 * <a href="http://www.javaspecialists.eu/archive/Issue137.html">here</a>.
+	 * 
+	 * @return a {@link Log} instance with the current class name
+	 */
+	public static Log forThisClass() {
+		Throwable t = new Throwable();
+		StackTraceElement directCaller = t.getStackTrace()[1];
+		return named(directCaller.getClassName());
+	}
+
+	/**
      * Returns a {@link Log} instance for the given class.
      *
      * @param klass    a given class
