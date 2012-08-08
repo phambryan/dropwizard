@@ -66,7 +66,7 @@ public abstract class ConfiguredCommand<T extends Configuration> extends Command
 
     @Override
     protected final String getSyntax() {
-        final StringBuilder syntax = new StringBuilder("<config file>");
+        final StringBuilder syntax = new StringBuilder("[config file]");
         final String configured = getConfiguredSyntax();
         if ((configured != null) && !configured.isEmpty()) {
             syntax.append(' ').append(configured);
@@ -76,24 +76,26 @@ public abstract class ConfiguredCommand<T extends Configuration> extends Command
 
     @Override
     @SuppressWarnings("unchecked")
-    protected final void run(AbstractService<?> service,
-                             CommandLine params) throws Exception {
-        final ConfigurationFactory<T> factory = ConfigurationFactory.forClass(getConfigurationClass(),
-                                                                              new Validator(),
-                                                                              service.getJacksonModules());
+    protected final void run(AbstractService<?> service, CommandLine params) throws Exception {
         final String[] args = params.getArgs();
-        if (args.length >= 1) {
-            params.getArgList().remove(0);
-            try {
-                final T configuration = factory.build(new File(args[0]));
-                new LoggingFactory(configuration.getLoggingConfiguration(), service.getName()).configure();
-                run((AbstractService<T>) service, configuration, params);
-            } catch (ConfigurationException e) {
-                printHelp(e.getMessage(), service.getClass());
+        final Class<T> configurationClass = getConfigurationClass();
+        T configuration = null;
+        final ConfigurationFactory<T> configurationFactory =
+                ConfigurationFactory.forClass(configurationClass, new Validator(), service.getJacksonModules());
+        try {
+            if (args.length >= 1) {
+                params.getArgList().remove(0);
+                configuration = configurationFactory.build(new File(args[0]));
+            } else {
+                configuration = configurationFactory.build();
             }
-        } else {
-            printHelp(service.getClass());
-            System.exit(-1);
+        } catch (ConfigurationException e) {
+            printHelp(e.getMessage(), service.getClass());
+        }
+
+        if (configuration != null) {
+            new LoggingFactory(configuration.getLoggingConfiguration(), service.getName()).configure();
+            run((AbstractService<T>)service, configuration, params);
         }
     }
 
