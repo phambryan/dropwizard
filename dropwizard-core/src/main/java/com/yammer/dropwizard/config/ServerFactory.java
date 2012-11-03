@@ -5,7 +5,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.yammer.dropwizard.jetty.BiDiGzipHandler;
 import com.yammer.dropwizard.jetty.UnbrandedErrorHandler;
-import com.yammer.dropwizard.logging.Log;
 import com.yammer.dropwizard.servlets.ThreadNameFilter;
 import com.yammer.dropwizard.tasks.TaskServlet;
 import com.yammer.dropwizard.util.Duration;
@@ -38,8 +37,11 @@ import org.eclipse.jetty.util.security.Credential;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.eclipse.jetty.util.thread.ThreadPool;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.DispatcherType;
+import java.io.File;
 import java.security.KeyStore;
 import java.util.EnumSet;
 import java.util.EventListener;
@@ -49,7 +51,7 @@ import java.util.Map;
 // TODO: 11/7/11 <coda> -- document ServerFactory
 
 public class ServerFactory {
-    private static final Log LOG = Log.forClass(ServerFactory.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ServerFactory.class);
 
     private final HttpConfiguration config;
     private final RequestLogHandlerFactory requestLogHandlerFactory;
@@ -67,7 +69,7 @@ public class ServerFactory {
         }
 
         if (env.getHealthChecks().isEmpty()) {
-            LOG.warn('\n' +
+            LOGGER.warn('\n' +
                              "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n" +
                              "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n" +
                              "!    THIS SERVICE HAS NO HEALTHCHECKS. THIS MEANS YOU WILL NEVER KNOW IF IT    !\n" +
@@ -114,7 +116,7 @@ public class ServerFactory {
 
         connector.setHost(config.getBindHost().orNull());
 
-        connector.setAcceptors(config.getAcceptorThreadCount());
+        connector.setAcceptors(config.getAcceptorThreads());
 
         connector.setForwarded(config.useForwardedHeaders());
 
@@ -154,19 +156,19 @@ public class ServerFactory {
     private AbstractConnector createConnector(int port) {
         final AbstractConnector connector;
         switch (config.getConnectorType()) {
-            case BLOCKING_CHANNEL:
+            case BLOCKING:
                 connector = new InstrumentedBlockingChannelConnector(port);
                 break;
-            case SOCKET:
+            case LEGACY:
                 connector = new InstrumentedSocketConnector(port);
                 break;
-            case SOCKET_SSL:
+            case LEGACY_SSL:
                 connector = new InstrumentedSslSocketConnector(port);
                 break;
-            case SELECT_CHANNEL:
+            case NONBLOCKING:
                 connector = new InstrumentedSelectChannelConnector(port);
                 break;
-            case SELECT_CHANNEL_SSL:
+            case NONBLOCKING_SSL:
                 connector = new InstrumentedSslSelectChannelConnector(port);
                 break;
             default:
@@ -189,8 +191,8 @@ public class ServerFactory {
     }
 
     private void configureSslContext(SslContextFactory factory) {
-        for (String path : config.getSslConfiguration().getKeyStorePath().asSet()) {
-            factory.setKeyStorePath(path);
+        for (File keyStore : config.getSslConfiguration().getKeyStore().asSet()) {
+            factory.setKeyStorePath(keyStore.getAbsolutePath());
         }
 
         for (String password : config.getSslConfiguration().getKeyStorePassword().asSet()) {
@@ -221,7 +223,11 @@ public class ServerFactory {
             }
         }
 
-        factory.setIncludeProtocols(config.getSslConfiguration().getSupportedProtocols());
+        factory.setIncludeProtocols(config.getSslConfiguration()
+                                          .getSupportedProtocols()
+                                          .toArray(new String[config.getSslConfiguration()
+                                                                    .getSupportedProtocols()
+                                                                    .size()]));
     }
 
 
