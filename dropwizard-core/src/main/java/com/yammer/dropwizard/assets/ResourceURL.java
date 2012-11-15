@@ -1,4 +1,4 @@
-package com.yammer.dropwizard.util;
+package com.yammer.dropwizard.assets;
 
 import java.io.File;
 import java.io.IOException;
@@ -12,6 +12,8 @@ import java.util.zip.ZipEntry;
  * Helper methods for dealing with {@link URL} objects for local resources.
  */
 public class ResourceURL {
+    private ResourceURL() { /* singleton */ }
+
     /**
      * Returns true if the URL passed to it corresponds to a directory.  This is slightly tricky due to some quirks
      * of the {@link JarFile} API.  Only jar:// and file:// URLs are supported.
@@ -69,31 +71,6 @@ public class ResourceURL {
         } catch (MalformedURLException ignored) { // shouldn't happen
             throw new IllegalArgumentException("Invalid resource URL: " + originalURL);
         }
-    }
-
-    /**
-     * Resolves a path in the context of a given URL, and returns the resulting {@link URL} object.  Similar to
-     * {@link URL#URL(URL, String)}, except that the resulting URL is guaranteed to be rooted in {@code context}:
-     * {@code path} cannot override the protocol or authority components, nor can '..' tricks be used to escape the
-     * context.
-     *
-     * @param context A URL describing the context in which path should be resolved
-     * @param path    the relative path to resolve
-     * @return a new URL object corresponding to the resolved path
-     */
-    public static URL resolveRelativeURL(URL context, String path) {
-        final URL newURL;
-        try {
-            newURL = new URL(context, path);
-        } catch (MalformedURLException ignored) {
-            throw new IllegalArgumentException("Failed to make a URL out of " + context + " and " + path);
-        }
-        // This is pretty blunt, but it seems to work:
-        if (!newURL.toExternalForm().startsWith(context.toExternalForm())) {
-            throw new IllegalArgumentException("Resolved URL " + newURL.toExternalForm() +
-                    " not within original context " + context.toExternalForm());
-        }
-        return newURL;
     }
 
     /**

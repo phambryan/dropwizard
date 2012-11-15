@@ -1,9 +1,9 @@
-package com.yammer.dropwizard.util.tests;
+package com.yammer.dropwizard.assets.tests;
 
 import com.google.common.io.Files;
 import com.google.common.io.Resources;
-import com.yammer.dropwizard.util.ResourceNotFoundException;
-import com.yammer.dropwizard.util.ResourceURL;
+import com.yammer.dropwizard.assets.ResourceNotFoundException;
+import com.yammer.dropwizard.assets.ResourceURL;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -111,33 +111,6 @@ public class ResourceURLTest {
                 .doesNotMatch(".*//$");
         assertThat(url)
                 .isEqualTo(ResourceURL.appendTrailingSlash(url));
-    }
-
-    @Test
-    public void resolveRelativeUrlResolvesPathsCorrectly() throws Exception {
-        final URL url = new URL("file:/example/directory/");
-        final URL newUrl = ResourceURL.resolveRelativeURL(url, "foo");
-
-        assertThat(newUrl.toExternalForm())
-                .isEqualTo("file:/example/directory/foo");
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void resolveRelativeUrlThrowsExceptionsIfProtocolIsOverridden() throws Exception {
-        final URL url = new URL("file:/example/directory/");
-        ResourceURL.resolveRelativeURL(url, "http://");
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void resolveRelativeUrlThrowsExceptionsIfAuthorityIsOverridden() throws Exception {
-        final URL url = new URL("file:/example/directory/");
-        ResourceURL.resolveRelativeURL(url, "//foo/");
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void resolveRelativeUrlThrowsExceptionsIfPathIsEscaped() throws Exception {
-        final URL url = new URL("file:/example/directory/");
-        ResourceURL.resolveRelativeURL(url, "../../alternate/directory");
     }
 
     @Test

@@ -1,9 +1,7 @@
-package com.yammer.dropwizard.servlets.tests;
+package com.yammer.dropwizard.assets.tests;
 
-import com.google.common.cache.CacheBuilderSpec;
-import com.google.common.io.Resources;
 import com.google.common.net.HttpHeaders;
-import com.yammer.dropwizard.servlets.AssetServlet;
+import com.yammer.dropwizard.assets.AssetServlet;
 import org.eclipse.jetty.http.MimeTypes;
 import org.eclipse.jetty.testing.HttpTester;
 import org.eclipse.jetty.testing.ServletTester;
@@ -11,15 +9,14 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import static org.fest.assertions.api.Assertions.*;
+import static org.fest.assertions.api.Assertions.assertThat;
 
 @SuppressWarnings({ "serial", "StaticNonFinalField", "StaticVariableMayNotBeInitialized" })
 public class AssetServletTest {
     private static ServletTester servletTester;
     private static final String DUMMY_SERVLET = "/dummy_servlet/";
     private static final String NOINDEX_SERVLET = "/noindex_servlet/";
-    private static final String RESOURCE_PATH = "assets";
-    private static final CacheBuilderSpec CACHE_BUILDER_SPEC = CacheBuilderSpec.parse("maximumSize=100");
+    private static final String RESOURCE_PATH = "/assets";
 
     private HttpTester request;
     private HttpTester response;
@@ -28,13 +25,13 @@ public class AssetServletTest {
 
     public static class DummyAssetServlet extends AssetServlet {
         public DummyAssetServlet() {
-            super(Resources.getResource(RESOURCE_PATH), CACHE_BUILDER_SPEC, DUMMY_SERVLET, "index.htm");
+            super(RESOURCE_PATH, DUMMY_SERVLET, "index.htm");
         }
     }
 
     public static class NoIndexAssetServlet extends AssetServlet {
         public NoIndexAssetServlet() {
-            super(Resources.getResource(RESOURCE_PATH), CACHE_BUILDER_SPEC, DUMMY_SERVLET, null);
+            super(RESOURCE_PATH, DUMMY_SERVLET, null);
         }
     }
 
@@ -53,6 +50,16 @@ public class AssetServletTest {
         request.setURI(DUMMY_SERVLET + "example.txt");
         request.setVersion("HTTP/1.0");
         response = new HttpTester();
+    }
+    
+    @Test
+    public void servesFilesFromRootsWithSameName() throws Exception {
+        request.setURI( DUMMY_SERVLET+"example2.txt" );
+        response.parse(servletTester.getResponses(request.generate()));
+        assertThat(response.getStatus())
+                .isEqualTo(200);
+        assertThat(response.getContent())
+                .isEqualTo("HELLO THERE 2");
     }
 
     @Test

@@ -38,11 +38,10 @@ v0.6.0-SNAPSHOT: TBD
 * Upgraded to Mustache 0.8.8.
 * Upgraded to Jersey 1.15.
 * Upgraded to Apache HttpClient 4.2.2.
-* Upgraded to Metrics 3.0.0.
 * Upgraded to JDBI 2.41.
 * Upgraded to Logback 1.0.7 and SLF4J 1.7.2.
 * Upgraded to Guava 13.0.1.
-* Upgraded to Jackson 2.1.0.
+* Upgraded to Jackson 2.1.1.
 
 .. _rel-0.5.1:
 

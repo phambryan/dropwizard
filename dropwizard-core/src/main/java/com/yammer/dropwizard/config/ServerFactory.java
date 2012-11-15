@@ -3,7 +3,10 @@ package com.yammer.dropwizard.config;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.yammer.dropwizard.jetty.BiDiGzipHandler;
+import com.yammer.dropwizard.jetty.InstrumentedSslSelectChannelConnector;
+import com.yammer.dropwizard.jetty.InstrumentedSslSocketConnector;
 import com.yammer.dropwizard.jetty.UnbrandedErrorHandler;
 import com.yammer.dropwizard.servlets.ThreadNameFilter;
 import com.yammer.dropwizard.tasks.TaskServlet;
@@ -12,7 +15,7 @@ import com.yammer.dropwizard.util.Size;
 import com.yammer.metrics.HealthChecks;
 import com.yammer.metrics.core.HealthCheck;
 import com.yammer.metrics.jetty.*;
-import com.yammer.metrics.servlet.AdminServlet;
+import com.yammer.metrics.reporting.AdminServlet;
 import com.yammer.metrics.util.DeadlockHealthCheck;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
@@ -31,7 +34,6 @@ import org.eclipse.jetty.server.ssl.SslConnector;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
-import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.security.Constraint;
 import org.eclipse.jetty.util.security.Credential;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
@@ -42,6 +44,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.DispatcherType;
 import java.io.File;
+import java.net.URI;
 import java.security.KeyStore;
 import java.util.EnumSet;
 import java.util.EventListener;
@@ -93,7 +96,8 @@ public class ServerFactory {
 
         server.addConnector(createExternalConnector());
 
-        if (config.getAdminPort() != config.getPort() ) {
+        // if we're dynamically allocating ports, no worries if they are the same (i.e. 0)
+        if (config.getAdminPort() == 0 || (config.getAdminPort() != config.getPort()) ) {
             server.addConnector(createInternalConnector());
         }
 
@@ -191,43 +195,104 @@ public class ServerFactory {
     }
 
     private void configureSslContext(SslContextFactory factory) {
-        for (File keyStore : config.getSslConfiguration().getKeyStore().asSet()) {
+        final SslConfiguration sslConfig = config.getSslConfiguration();
+
+        for (File keyStore : sslConfig.getKeyStore().asSet()) {
             factory.setKeyStorePath(keyStore.getAbsolutePath());
         }
 
-        for (String password : config.getSslConfiguration().getKeyStorePassword().asSet()) {
+        for (String password : sslConfig.getKeyStorePassword().asSet()) {
             factory.setKeyStorePassword(password);
         }
 
-        for (String password : config.getSslConfiguration().getKeyManagerPassword().asSet()) {
+        for (String password : sslConfig.getKeyManagerPassword().asSet()) {
             factory.setKeyManagerPassword(password);
         }
 
-        for (String certAlias : config.getSslConfiguration().getCertAlias().asSet()) {
+        for (String certAlias : sslConfig.getCertAlias().asSet()) {
             factory.setCertAlias(certAlias);
         }
 
-        for (String type : config.getSslConfiguration().getKeyStoreType().asSet()) {
-            if (type.startsWith("Windows-")) {
-                try {
-                    final KeyStore keyStore = KeyStore.getInstance(type);
+        final String keyStoreType = sslConfig.getKeyStoreType();
+        if (keyStoreType.startsWith("Windows-")) {
+            try {
+                final KeyStore keyStore = KeyStore.getInstance(keyStoreType);
 
-                    keyStore.load(null, null);
-                    factory.setKeyStore(keyStore);
+                keyStore.load(null, null);
+                factory.setKeyStore(keyStore);
 
-                } catch (Exception e) {
-                    throw new IllegalStateException("Windows key store not supported", e);
-                }
-            } else {
-                factory.setKeyStoreType(type);
+            } catch (Exception e) {
+                throw new IllegalStateException("Windows key store not supported", e);
             }
+        } else {
+            factory.setKeyStoreType(keyStoreType);
         }
 
-        factory.setIncludeProtocols(config.getSslConfiguration()
-                                          .getSupportedProtocols()
-                                          .toArray(new String[config.getSslConfiguration()
-                                                                    .getSupportedProtocols()
-                                                                    .size()]));
+        for (File trustStore : sslConfig.getTrustStore().asSet()) {
+            factory.setTrustStore(trustStore.getAbsolutePath());
+        }
+
+        for (String password : sslConfig.getTrustStorePassword().asSet()) {
+            factory.setTrustStorePassword(password);
+        }
+
+        final String trustStoreType = sslConfig.getTrustStoreType();
+        if (trustStoreType.startsWith("Windows-")) {
+            try {
+                final KeyStore keyStore = KeyStore.getInstance(trustStoreType);
+
+                keyStore.load(null, null);
+                factory.setTrustStore(keyStore);
+
+            } catch (Exception e) {
+                throw new IllegalStateException("Windows key store not supported", e);
+            }
+        } else {
+            factory.setTrustStoreType(trustStoreType);
+        }
+
+        for (Boolean needClientAuth : sslConfig.getNeedClientAuth().asSet()) {
+            factory.setNeedClientAuth(needClientAuth);
+        }
+
+        for (Boolean wantClientAuth : sslConfig.getWantClientAuth().asSet()) {
+            factory.setWantClientAuth(wantClientAuth);
+        }
+
+        for (Boolean allowRenegotiate : sslConfig.getAllowRenegotiate().asSet()) {
+            factory.setAllowRenegotiate(allowRenegotiate);
+        }
+
+        for (File crlPath : sslConfig.getCrlPath().asSet()) {
+            factory.setCrlPath(crlPath.getAbsolutePath());
+        }
+
+        for (Boolean enable : sslConfig.getEnableCRLDP().asSet()) {
+            factory.setEnableCRLDP(enable);
+        }
+
+        for (Boolean enable : sslConfig.getEnableOCSP().asSet()) {
+            factory.setEnableOCSP(enable);
+        }
+
+        for (Integer length : sslConfig.getMaxCertPathLength().asSet()) {
+            factory.setMaxCertPathLength(length);
+        }
+
+        for (URI uri : sslConfig.getOcspResponderUrl().asSet()) {
+            factory.setOcspResponderURL(uri.toASCIIString());
+        }
+
+        for (String provider : sslConfig.getJceProvider().asSet()) {
+            factory.setProvider(provider);
+        }
+
+        for (Boolean validate : sslConfig.getValidatePeers().asSet()) {
+            factory.setValidatePeerCerts(validate);
+        }
+
+        factory.setIncludeProtocols(Iterables.toArray(sslConfig.getSupportedProtocols(),
+                                                      String.class));
     }
 
 
@@ -292,7 +357,8 @@ public class ServerFactory {
         final ServletContextHandler handler = new ServletContextHandler();
         handler.addFilter(ThreadNameFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
         handler.setBaseResource(env.getBaseResource());
-        if(env.getProtectedTargets().size() > 0) {
+
+        if(!env.getProtectedTargets().isEmpty()) {
             handler.setProtectedTargets(env.getProtectedTargets().toArray(new String[env.getProtectedTargets().size()]));
         }
 
