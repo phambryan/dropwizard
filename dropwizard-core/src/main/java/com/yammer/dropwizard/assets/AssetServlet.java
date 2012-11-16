@@ -17,8 +17,13 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
 public class AssetServlet extends HttpServlet {
     private static final long serialVersionUID = 6393345594784987908L;
+    private static final Logger LOGGER = LoggerFactory.getLogger(AssetServlet.class);
 
     private static class CachedAsset {
         private final byte[] resource;
@@ -135,12 +140,14 @@ public class AssetServlet extends HttpServlet {
 
         if (ResourceURL.isDirectory(requestedResourceURL)) {
             if (indexFile != null) {
-                requestedResourceURL = Resources.getResource(absoluteRequestedResourcePath + '/' + indexFile);
+		String appendPath = absoluteRequestedResourcePath.endsWith("/") ? absoluteRequestedResourcePath + indexFile
+										: absoluteRequestedResourcePath + "/" + indexFile;
+                requestedResourceURL = Resources.getResource(appendPath);
             } else {
                 // directory requested but no index file defined
                 return null;
             }
-        }
+        } 
 
         long lastModified = ResourceURL.getLastModified(requestedResourceURL);
         if (lastModified < 1) {
