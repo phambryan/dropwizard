@@ -32,7 +32,8 @@ v0.6.0-SNAPSHOT: TBD
 * Dropped Jerkson in favor of Jackson's Scala module.
 * Added ``Optional`` support for JDBI.
 * Fixed bug in stopping ``AsyncRequestLog``.
-* Upgraded to Jetty 8.1.7.
+* Upgraded to Metrics 2.1.5.
+* Upgraded to Jetty 8.1.8.
 * Upgraded to Mockito 1.9.5.
 * Upgraded to tomcat-dbcp 7.0.32.
 * Upgraded to Mustache 0.8.8.
@@ -42,6 +43,7 @@ v0.6.0-SNAPSHOT: TBD
 * Upgraded to Logback 1.0.7 and SLF4J 1.7.2.
 * Upgraded to Guava 13.0.1.
 * Upgraded to Jackson 2.1.1.
+* Added support for Joda Time.
 
 .. _rel-0.5.1:
 
