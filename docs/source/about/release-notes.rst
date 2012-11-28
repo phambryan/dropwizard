@@ -4,6 +4,14 @@
 Release Notes
 #############
 
+.. _rel-0.6.1:
+
+v0.6.1: Nov 28 2012
+===================
+
+* Fixed incorrect latencies in request logs on Linux.
+* Added ability to register multiple ``ServerLifecycleListener`` instances.
+
 .. _rel-0.6.0:
 
 v0.6.0: Nov 26 2012
@@ -12,6 +20,7 @@ v0.6.0: Nov 26 2012
 * Added Hibernate support in ``dropwizard-hibernate``.
 * Added Liquibase migrations in ``dropwizard-migrations``.
 * Renamed ``http.acceptorThreadCount`` to ``http.acceptorThreads``.
+* Renamed ``ssl.keyStorePath`` to ``ssl.keyStore``.
 * Dropped ``JerseyClient``. Use Jersey's ``Client`` class instead.
 * Moved JDBI support to ``dropwizard-jdbi``.
 * Dropped ``Database``. Use JDBI's ``DBI`` class instead.
