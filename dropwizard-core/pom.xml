@@ -81,7 +81,7 @@
         <dependency>
             <groupId>net.sourceforge.argparse4j</groupId>
             <artifactId>argparse4j</artifactId>
-            <version>0.3.2</version>
+            <version>0.4.0</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -121,7 +121,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>14.0-rc3</version>
+            <version>14.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.code.findbugs</groupId>
