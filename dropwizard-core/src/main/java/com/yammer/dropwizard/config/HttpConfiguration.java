@@ -1,6 +1,7 @@
 package com.yammer.dropwizard.config;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Optional;
@@ -43,16 +44,16 @@ public class HttpConfiguration {
 
     @Valid
     @NotNull
-    @JsonProperty
+    @JsonProperty("requestLog")
     private RequestLogConfiguration requestLog = new RequestLogConfiguration();
 
     @Valid
     @NotNull
-    @JsonProperty
+    @JsonProperty("gzip")
     private GzipConfiguration gzip = new GzipConfiguration();
 
     @Valid
-    @JsonProperty
+    @JsonProperty("ssl")
     private SslConfiguration ssl = null;
 
     @NotNull
@@ -180,6 +181,7 @@ public class HttpConfiguration {
         return (adminPassword == null) || (adminUsername != null);
     }
 
+    @JsonIgnore
     public RequestLogConfiguration getRequestLogConfiguration() {
         return requestLog;
     }
@@ -188,6 +190,7 @@ public class HttpConfiguration {
         this.requestLog = config;
     }
 
+    @JsonIgnore
     public GzipConfiguration getGzipConfiguration() {
         return gzip;
     }
@@ -196,6 +199,7 @@ public class HttpConfiguration {
         this.gzip = config;
     }
 
+    @JsonIgnore
     public SslConfiguration getSslConfiguration() {
         return ssl;
     }
