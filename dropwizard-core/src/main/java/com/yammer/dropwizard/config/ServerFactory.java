@@ -1,7 +1,6 @@
 package com.yammer.dropwizard.config;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.sun.jersey.spi.container.servlet.ServletContainer;
@@ -9,7 +8,6 @@ import com.yammer.dropwizard.jersey.JacksonMessageBodyProvider;
 import com.yammer.dropwizard.jetty.BiDiGzipHandler;
 import com.yammer.dropwizard.jetty.UnbrandedErrorHandler;
 import com.yammer.dropwizard.servlets.ThreadNameFilter;
-import com.yammer.dropwizard.tasks.TaskServlet;
 import com.yammer.dropwizard.util.Duration;
 import com.yammer.dropwizard.util.Size;
 import com.yammer.metrics.HealthChecks;
@@ -31,7 +29,6 @@ import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.nio.AbstractNIOConnector;
 import org.eclipse.jetty.server.nio.SelectChannelConnector;
 import org.eclipse.jetty.server.ssl.SslConnector;
-import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.security.Constraint;
@@ -47,8 +44,6 @@ import java.io.File;
 import java.net.URI;
 import java.security.KeyStore;
 import java.util.EnumSet;
-import java.util.EventListener;
-import java.util.Map;
 
 /*
  * A factory for creating instances of {@link org.eclipse.jetty.server.Server} and configuring Servlets
@@ -81,29 +76,13 @@ public class ServerFactory {
         for (HealthCheck healthCheck : env.getHealthChecks()) {
             HealthChecks.defaultRegistry().register(healthCheck);
         }
-
-        if (env.getHealthChecks().isEmpty()) {
-            LOGGER.warn('\n' +
-                             "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n" +
-                             "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n" +
-                             "!    THIS SERVICE HAS NO HEALTHCHECKS. THIS MEANS YOU WILL NEVER KNOW IF IT    !\n" +
-                             "!    DIES IN PRODUCTION, WHICH MEANS YOU WILL NEVER KNOW IF YOU'RE LETTING     !\n" +
-                             "!     YOUR USERS DOWN. YOU SHOULD ADD A HEALTHCHECK FOR EACH DEPENDENCY OF     !\n" +
-                             "!     YOUR SERVICE WHICH FULLY (BUT LIGHTLY) TESTS YOUR SERVICE'S ABILITY TO   !\n" +
-                             "!      USE THAT SERVICE. THINK OF IT AS A CONTINUOUS INTEGRATION TEST.         !\n" +
-                             "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n" +
-                             "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-            );
-        }
-
-        final Server server = createServer();
+        final Server server = createServer(env);
         server.setHandler(createHandler(env));
-        server.addBean(env);
         return server;
     }
 
-    private Server createServer() {
-        final Server server = new Server();
+    private Server createServer(Environment env) {
+        final Server server = env.getServer();
 
         server.addConnector(createExternalConnector());
 
@@ -310,8 +289,8 @@ public class ServerFactory {
     private Handler createHandler(Environment env) {
         final HandlerCollection collection = new HandlerCollection();
 
-        collection.addHandler(createInternalServlet(env));
         collection.addHandler(createExternalServlet(env));
+        collection.addHandler(createInternalServlet(env));
 
         if (requestLogHandlerFactory.isEnabled()) {
             collection.addHandler(requestLogHandlerFactory.build());
@@ -321,8 +300,7 @@ public class ServerFactory {
     }
 
     private Handler createInternalServlet(Environment env) {
-        final ServletContextHandler handler = new ServletContextHandler();
-        handler.addServlet(new ServletHolder(new TaskServlet(env.getTasks())), "/tasks/*");
+        final ServletContextHandler handler = env.getAdminContext();
         handler.addServlet(new ServletHolder(new AdminServlet()), "/*");
 
         if (config.getAdminPort() != 0 && config.getAdminPort() == config.getPort()) {
@@ -365,40 +343,17 @@ public class ServerFactory {
     }
 
     private Handler createExternalServlet(Environment env) {
-        final ServletContextHandler handler = new ServletContextHandler();
+        final ServletContextHandler handler = env.getServletContextHandler();
         handler.addFilter(ThreadNameFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
-        handler.setBaseResource(env.getBaseResource());
-
-        if(!env.getProtectedTargets().isEmpty()) {
-            handler.setProtectedTargets(env.getProtectedTargets().toArray(new String[env.getProtectedTargets().size()]));
-        }
-
-        for (ImmutableMap.Entry<String, ServletHolder> entry : env.getServlets().entrySet()) {
-            handler.addServlet(entry.getValue(), entry.getKey());
-        }
 
         final ServletContainer jerseyContainer = env.getJerseyServletContainer();
         if (jerseyContainer != null) {
-            env.addProvider(new JacksonMessageBodyProvider(env.getObjectMapperFactory().build(),
-                                                           env.getValidator()));
+            env.getJerseyEnvironment().addProvider(new JacksonMessageBodyProvider(env.getObjectMapperFactory().build(),
+                                                               env.getValidator()));
             final ServletHolder jerseyHolder = new ServletHolder(jerseyContainer);
             jerseyHolder.setInitOrder(Integer.MAX_VALUE);
-            handler.addServlet(jerseyHolder, config.getRootPath());
+            handler.addServlet(jerseyHolder, env.getJerseyEnvironment().getUrlPattern());
         }
-
-        for (ImmutableMap.Entry<String, FilterHolder> entry : env.getFilters().entries()) {
-            handler.addFilter(entry.getValue(), entry.getKey(), EnumSet.of(DispatcherType.REQUEST));
-        }
-
-        for (EventListener listener : env.getServletListeners()) {
-            handler.addEventListener(listener);
-        }
-
-        for (Map.Entry<String, String> entry : config.getContextParameters().entrySet()) {
-            handler.setInitParameter( entry.getKey(), entry.getValue() );
-        }
-
-        handler.setSessionHandler(env.getSessionHandler());
 
         handler.setConnectorNames(new String[]{"main"});
 

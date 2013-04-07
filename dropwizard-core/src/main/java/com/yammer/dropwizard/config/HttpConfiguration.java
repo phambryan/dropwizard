@@ -60,13 +60,11 @@ public class HttpConfiguration {
     @JsonProperty
     private ImmutableMap<String, String> contextParameters = ImmutableMap.of();
 
-    @Min(1)
-    @Max(65535)
+    @PortRange
     @JsonProperty
     private int port = 8080;
 
-    @Min(1)
-    @Max(65535)
+    @PortRange
     @JsonProperty
     private int adminPort = 8081;
 

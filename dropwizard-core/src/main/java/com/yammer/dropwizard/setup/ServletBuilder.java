@@ -1,6 +1,6 @@
-package com.yammer.dropwizard.config;
+package com.yammer.dropwizard.setup;
 
-import com.google.common.collect.ImmutableMap;
+import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 
 import java.util.Map;
@@ -14,18 +14,18 @@ import static com.google.common.base.Strings.isNullOrEmpty;
  */
 public class ServletBuilder {
     private final ServletHolder holder;
-    private final ImmutableMap.Builder<String, ServletHolder> mappings;
+    private final ServletContextHandler handler;
 
     /**
      * Creates a new ServletBuilder.
      *
      * @param holder   the {@link ServletHolder} containing the {@link javax.servlet.Servlet}
-     * @param mappings the mappings of URL patterns to {@link javax.servlet.Servlet}s
+     * @param handler  the {@link ServletContextHandler}
      */
     public ServletBuilder(ServletHolder holder,
-                          ImmutableMap.Builder<String, ServletHolder> mappings) {
+                          ServletContextHandler handler) {
         this.holder = holder;
-        this.mappings = mappings;
+        this.handler = handler;
     }
 
     /**
@@ -84,7 +84,7 @@ public class ServletBuilder {
      */
     public ServletBuilder addUrlPattern(String urlPattern) {
         try {
-            mappings.put(checkNotNull(urlPattern), holder);
+            handler.addServlet(holder, checkNotNull(urlPattern));
         } catch (IllegalArgumentException ignored) {
                 throw new IllegalArgumentException("Can't map this servlet to " + urlPattern +
                                                              ", another servlet is already mapped to that.");

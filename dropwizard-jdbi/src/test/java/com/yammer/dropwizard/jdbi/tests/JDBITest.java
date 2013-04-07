@@ -9,6 +9,8 @@ import com.yammer.dropwizard.db.DatabaseConfiguration;
 import com.yammer.dropwizard.db.ManagedDataSource;
 import com.yammer.dropwizard.jdbi.DBIFactory;
 import com.yammer.dropwizard.lifecycle.Managed;
+import com.yammer.dropwizard.setup.AdminEnvironment;
+import com.yammer.dropwizard.setup.LifecycleEnvironment;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -25,6 +27,7 @@ import static org.fest.assertions.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class JDBITest {
     private final DatabaseConfiguration hsqlConfig = new DatabaseConfiguration();
@@ -37,6 +40,8 @@ public class JDBITest {
         hsqlConfig.setValidationQuery("SELECT 1 FROM INFORMATION_SCHEMA.SYSTEM_USERS");
     }
 
+    private final AdminEnvironment adminEnvironment = mock(AdminEnvironment.class);
+    private final LifecycleEnvironment lifecycleEnvironment = mock(LifecycleEnvironment.class);
     private final Environment environment = mock(Environment.class);
     private final DBIFactory factory = new DBIFactory();
     private final List<Managed> managed = Lists.newArrayList();
@@ -44,9 +49,12 @@ public class JDBITest {
 
     @Before
     public void setUp() throws Exception {
+        when(environment.getAdminEnvironment()).thenReturn(adminEnvironment);
+        when(environment.getLifecycleEnvironment()).thenReturn(lifecycleEnvironment);
+
         this.dbi = factory.build(environment, hsqlConfig, "hsql");
         final ArgumentCaptor<Managed> managedCaptor = ArgumentCaptor.forClass(Managed.class);
-        verify(environment).manage(managedCaptor.capture());
+        verify(lifecycleEnvironment).manage(managedCaptor.capture());
         managed.addAll(managedCaptor.getAllValues());
         for (Managed obj : managed) {
             obj.start();
@@ -99,7 +107,7 @@ public class JDBITest {
 
     @Test
     public void managesTheDatabaseWithTheEnvironment() throws Exception {
-        verify(environment).manage(any(ManagedDataSource.class));
+        verify(lifecycleEnvironment).manage(any(ManagedDataSource.class));
     }
 
     @Test
