@@ -4,6 +4,7 @@ import com.yammer.dropwizard.Service;
 import com.yammer.dropwizard.config.Bootstrap;
 import com.yammer.dropwizard.config.Configuration;
 import com.yammer.dropwizard.config.Environment;
+import com.yammer.dropwizard.json.ObjectMapperFactory;
 import com.yammer.dropwizard.validation.Validator;
 import net.sourceforge.argparse4j.inf.Namespace;
 
@@ -30,8 +31,8 @@ public abstract class EnvironmentCommand<T extends Configuration> extends Config
 
     @Override
     protected final void run(Bootstrap<T> bootstrap, Namespace namespace, T configuration) throws Exception {
-        final Environment environment = new Environment(bootstrap.getName(),
-                                                        bootstrap.getObjectMapperFactory().copy(),
+        final Environment environment = new Environment(bootstrap.getService().getName(),
+                                                        new ObjectMapperFactory(bootstrap.getObjectMapperFactory()),
                                                         new Validator());
         bootstrap.runWithBundles(configuration, environment);
         service.run(configuration, environment);

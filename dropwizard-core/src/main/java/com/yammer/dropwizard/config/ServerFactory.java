@@ -6,6 +6,7 @@ import com.google.common.collect.Iterables;
 import com.sun.jersey.spi.container.servlet.ServletContainer;
 import com.yammer.dropwizard.jersey.JacksonMessageBodyProvider;
 import com.yammer.dropwizard.jetty.BiDiGzipHandler;
+import com.yammer.dropwizard.jetty.NonblockingServletHolder;
 import com.yammer.dropwizard.jetty.UnbrandedErrorHandler;
 import com.yammer.dropwizard.servlets.ThreadNameFilter;
 import com.yammer.dropwizard.util.Duration;
@@ -301,7 +302,7 @@ public class ServerFactory {
 
     private Handler createInternalServlet(Environment env) {
         final ServletContextHandler handler = env.getAdminContext();
-        handler.addServlet(new ServletHolder(new AdminServlet()), "/*");
+        handler.addServlet(new NonblockingServletHolder(new AdminServlet()), "/*");
 
         if (config.getAdminPort() != 0 && config.getAdminPort() == config.getPort()) {
             handler.setContextPath("/admin");
@@ -343,14 +344,16 @@ public class ServerFactory {
     }
 
     private Handler createExternalServlet(Environment env) {
-        final ServletContextHandler handler = env.getServletContextHandler();
+        final ServletContextHandler handler = env.getServletContext();
         handler.addFilter(ThreadNameFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
 
         final ServletContainer jerseyContainer = env.getJerseyServletContainer();
         if (jerseyContainer != null) {
-            env.getJerseyEnvironment().addProvider(new JacksonMessageBodyProvider(env.getObjectMapperFactory().build(),
-                                                               env.getValidator()));
-            final ServletHolder jerseyHolder = new ServletHolder(jerseyContainer);
+            env.getJerseyEnvironment().addProvider(
+                    new JacksonMessageBodyProvider(env.getJsonEnvironment().build(),
+                                                   env.getValidator())
+            );
+            final ServletHolder jerseyHolder = new NonblockingServletHolder(jerseyContainer);
             jerseyHolder.setInitOrder(Integer.MAX_VALUE);
             handler.addServlet(jerseyHolder, env.getJerseyEnvironment().getUrlPattern());
         }

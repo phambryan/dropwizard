@@ -5,10 +5,7 @@ import com.google.common.collect.Sets;
 import com.sun.jersey.spi.container.servlet.ServletContainer;
 import com.yammer.dropwizard.jersey.DropwizardResourceConfig;
 import com.yammer.dropwizard.json.ObjectMapperFactory;
-import com.yammer.dropwizard.setup.AdminEnvironment;
-import com.yammer.dropwizard.setup.JerseyEnvironment;
-import com.yammer.dropwizard.setup.LifecycleEnvironment;
-import com.yammer.dropwizard.setup.ServletEnvironment;
+import com.yammer.dropwizard.setup.*;
 import com.yammer.dropwizard.validation.Validator;
 import com.yammer.metrics.core.HealthCheck;
 import org.eclipse.jetty.server.Server;
@@ -26,7 +23,7 @@ public class Environment {
     private final String name;
     private final Set<HealthCheck> healthChecks;
 
-    private final ObjectMapperFactory objectMapperFactory;
+    private final JsonEnvironment jsonEnvironment;
     private Validator validator;
 
     private final AtomicReference<ServletContainer> jerseyServletContainer;
@@ -51,7 +48,7 @@ public class Environment {
                        ObjectMapperFactory objectMapperFactory,
                        Validator validator) {
         this.name = name;
-        this.objectMapperFactory = objectMapperFactory;
+        this.jsonEnvironment = new JsonEnvironment(objectMapperFactory);
         this.validator = validator;
         final DropwizardResourceConfig jerseyConfig = new DropwizardResourceConfig(false);
 
@@ -87,9 +84,8 @@ public class Environment {
         return servletEnvironment;
     }
 
-
-    public ObjectMapperFactory getObjectMapperFactory() {
-        return objectMapperFactory;
+    public JsonEnvironment getJsonEnvironment() {
+        return jsonEnvironment;
     }
 
     public String getName() {
@@ -112,7 +108,7 @@ public class Environment {
         return ImmutableSet.copyOf(healthChecks);
     }
 
-    ServletContextHandler getServletContextHandler() {
+    ServletContextHandler getServletContext() {
         return servletContext;
     }
 
