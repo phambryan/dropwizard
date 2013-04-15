@@ -45,14 +45,6 @@ public class PortRangeValidatorTest {
     }
 
     @Test
-    public void rejectsPrivilegedPorts() throws Exception {
-        example.port = 80;
-
-        assertThat(validator.validate(example))
-                .containsOnly("port must be between 1025 and 65535 (was 80)");
-    }
-
-    @Test
     public void allowsForCustomMinimumPorts() throws Exception {
         example.otherPort = 8080;
 
