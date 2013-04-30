@@ -268,14 +268,6 @@ public class ServerConfiguration {
         this.useServerHeader = useServerHeader;
     }
 
-    public String getRootPath() {
-        return rootPath;
-    }
-
-    public void setRootPath(String path) {
-        this.rootPath = path;
-    }
-
     public Optional<String> getAdminUsername() {
         return Optional.fromNullable(adminUsername);
     }
