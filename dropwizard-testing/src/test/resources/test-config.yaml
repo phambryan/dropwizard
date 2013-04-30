@@ -1,4 +1,6 @@
 message: "Yes, it's here"
-http:
+server:
   port: 0
   adminPort: 0
+logging:
+  outputs: []
