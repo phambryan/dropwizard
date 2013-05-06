@@ -1,12 +1,12 @@
 package com.codahale.dropwizard.hibernate;
 
-import com.codahale.dropwizard.setup.Environment;
 import com.codahale.dropwizard.db.DatabaseConfiguration;
 import com.codahale.dropwizard.jackson.Jackson;
 import com.codahale.dropwizard.jersey.DropwizardResourceConfig;
 import com.codahale.dropwizard.jersey.jackson.JacksonMessageBodyProvider;
-import com.codahale.dropwizard.logging.LoggingFactory;
 import com.codahale.dropwizard.lifecycle.setup.LifecycleEnvironment;
+import com.codahale.dropwizard.logging.LoggingFactory;
+import com.codahale.dropwizard.setup.Environment;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
@@ -24,6 +24,7 @@ import org.junit.Test;
 import javax.validation.Validation;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
+import java.util.TimeZone;
 
 import static org.fest.assertions.api.Assertions.assertThat;
 import static org.fest.assertions.api.Assertions.failBecauseExceptionWasNotThrown;
@@ -73,15 +74,25 @@ public class JerseyIntegrationTest extends JerseyTest {
     }
 
     private SessionFactory sessionFactory;
+    private TimeZone defaultTZ;
 
     @Override
     @After
     public void tearDown() throws Exception {
+        TimeZone.setDefault(defaultTZ);
         super.tearDown();
 
         if (sessionFactory != null) {
             sessionFactory.close();
         }
+    }
+
+    @Override
+    public void setUp() throws Exception {
+        super.setUp();
+
+        this.defaultTZ = TimeZone.getDefault();
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
     }
 
     @Override
@@ -112,10 +123,10 @@ public class JerseyIntegrationTest extends JerseyTest {
         try {
             session.createSQLQuery("DROP TABLE people IF EXISTS").executeUpdate();
             session.createSQLQuery(
-                    "CREATE TABLE people (name varchar(100) primary key, email varchar(100), birthday timestamp)")
+                    "CREATE TABLE people (name varchar(100) primary key, email varchar(100), birthday timestamp with time zone)")
                    .executeUpdate();
             session.createSQLQuery(
-                    "INSERT INTO people VALUES ('Coda', 'coda@example.com', '1979-01-02 00:22:00')")
+                    "INSERT INTO people VALUES ('Coda', 'coda@example.com', '1979-01-02 00:22:00+0:00')")
                    .executeUpdate();
         } finally {
             session.close();
@@ -127,11 +138,6 @@ public class JerseyIntegrationTest extends JerseyTest {
         config.getSingletons().add(new JacksonMessageBodyProvider(Jackson.newObjectMapper(),
                                                                   Validation.buildDefaultValidatorFactory().getValidator()));
         return new LowLevelAppDescriptor.Builder(config).build();
-    }
-
-    @Override
-    public void setUp() throws Exception {
-        super.setUp();
     }
 
     @Test

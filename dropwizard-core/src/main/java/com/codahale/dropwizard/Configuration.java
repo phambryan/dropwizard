@@ -1,8 +1,8 @@
 package com.codahale.dropwizard;
 
-import com.codahale.dropwizard.config.LoggingConfiguration;
-import com.codahale.dropwizard.config.ServerConfiguration;
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.codahale.dropwizard.logging.LoggingFactory;
+import com.codahale.dropwizard.server.DefaultServerFactory;
+import com.codahale.dropwizard.server.ServerFactory;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 
@@ -44,33 +44,31 @@ import javax.validation.constraints.NotNull;
  *
  * @see <a href="http://www.yaml.org/YAML_for_ruby.html">YAML Cookbook</a>
  */
-@SuppressWarnings("UnusedDeclaration")
 public class Configuration {
     @Valid
     @NotNull
-    @JsonProperty
-    private ServerConfiguration server = new ServerConfiguration();
+    private ServerFactory server = new DefaultServerFactory();
 
     @Valid
     @NotNull
-    @JsonProperty
-    private LoggingConfiguration logging= new LoggingConfiguration();
+    private LoggingFactory logging = new LoggingFactory();
 
     /**
      * Returns the server-specific section of the configuration file.
      *
      * @return server-specific configuration parameters
      */
-    @JsonIgnore
-    public ServerConfiguration getServerConfiguration() {
+    @JsonProperty("server")
+    public ServerFactory getServerFactory() {
         return server;
     }
 
     /**
      * Sets the HTTP-specific section of the configuration file.
      */
-    public void setHttpConfiguration(ServerConfiguration config) {
-        this.server = config;
+    @JsonProperty("server")
+    public void setServerFactory(ServerFactory factory) {
+        this.server = factory;
     }
 
     /**
@@ -78,22 +76,23 @@ public class Configuration {
      *
      * @return logging-specific configuration parameters
      */
-    @JsonIgnore
-    public LoggingConfiguration getLoggingConfiguration() {
+    @JsonProperty("logging")
+    public LoggingFactory getLoggingFactory() {
         return logging;
     }
 
     /**
      * Sets the logging-specific section of the configuration file.
      */
-    public void setLoggingConfiguration(LoggingConfiguration config) {
-        logging = config;
+    @JsonProperty("logging")
+    public void setLoggingFactory(LoggingFactory factory) {
+        this.logging = factory;
     }
 
     @Override
     public String toString() {
         return Objects.toStringHelper(this)
-                      .add("http", server)
+                      .add("server", server)
                       .add("logging", logging)
                       .toString();
     }

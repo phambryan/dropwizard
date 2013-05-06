@@ -17,31 +17,29 @@
     </description>
 
     <modules>
+        <module>dropwizard-core</module>
+        <module>dropwizard-client</module>
+        <module>dropwizard-db</module>
+        <module>dropwizard-jdbi</module>
+        <module>dropwizard-migrations</module>
+        <module>dropwizard-hibernate</module>
+        <module>dropwizard-auth</module>
+        <module>dropwizard-example</module>
+        <module>dropwizard-views</module>
+        <module>dropwizard-views-freemarker</module>
+        <module>dropwizard-views-mustache</module>
+        <module>dropwizard-testing</module>
         <module>dropwizard-util</module>
-        <module>dropwizard-configuration</module>
         <module>dropwizard-jackson</module>
         <module>dropwizard-validation</module>
+        <module>dropwizard-configuration</module>
         <module>dropwizard-logging</module>
         <module>dropwizard-jersey</module>
         <module>dropwizard-jetty</module>
         <module>dropwizard-servlets</module>
         <module>dropwizard-lifecycle</module>
         <module>dropwizard-assets</module>
-
-        <module>dropwizard-core</module>
-        <module>dropwizard-db</module>
-        <module>dropwizard-jdbi</module>
-        <module>dropwizard-migrations</module>
-        <module>dropwizard-auth</module>
-<!--
-        <module>dropwizard-hibernate</module>
-        <module>dropwizard-client</module>
-        <module>dropwizard-example</module>
-        <module>dropwizard-views</module>
-        <module>dropwizard-views-freemarker</module>
-        <module>dropwizard-views-mustache</module>
-        <module>dropwizard-testing</module>
--->
+	<module>dropwizard-spdy</module>
     </modules>
 
     <properties>

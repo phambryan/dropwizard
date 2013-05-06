@@ -17,9 +17,36 @@ database:
   # the JDBC URL
   url: jdbc:h2:target/example
 
+# use the simple server factory if you only want to run on a single port
 #server:
-#  requestLog:
-#    outputs: []
+#  type: simple
+#  connector:
+#    type: http
+#    port: 8080
+
+server:
+  applicationConnectors:
+    - type: http
+      port: 8080
+    - type: https
+      port: 8443
+      keyStore: example.keystore
+      keyStorePassword: example
+      validateCerts: false
+# this requires the npn-boot library on the JVM's boot classpath
+#    - type: spdy
+#      port: 8445
+#      keyStore: example.keystore
+#      keyStorePassword: example
+#      validateCerts: false
+  adminConnectors:
+    - type: http
+      port: 8081
+    - type: https
+      port: 8444
+      keyStore: example.keystore
+      keyStorePassword: example
+      validateCerts: false
 
 # Logging settings.
 logging:
@@ -35,5 +62,5 @@ logging:
 
     org.hibernate.SQL: ALL
 
-  outputs:
+  appenders:
     - type: console
