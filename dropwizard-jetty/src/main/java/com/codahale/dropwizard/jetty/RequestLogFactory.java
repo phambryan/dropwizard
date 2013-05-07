@@ -6,8 +6,8 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.CoreConstants;
 import ch.qos.logback.core.LayoutBase;
 import ch.qos.logback.core.spi.AppenderAttachableImpl;
-import com.codahale.dropwizard.logging.ConsoleAppenderFactory;
 import com.codahale.dropwizard.logging.AppenderFactory;
+import com.codahale.dropwizard.logging.ConsoleAppenderFactory;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
@@ -65,17 +65,17 @@ public class RequestLogFactory {
         logger.setAdditive(false);
         final LoggerContext context = logger.getLoggerContext();
 
-        final AppenderAttachableImpl<ILoggingEvent> appenders = new AppenderAttachableImpl<>();
+        final AppenderAttachableImpl<ILoggingEvent> attachable = new AppenderAttachableImpl<>();
 
         final RequestLogLayout layout = new RequestLogLayout();
         layout.start();
 
         for (AppenderFactory output : this.appenders) {
-            appenders.addAppender(output.build(context, name, layout));
+            attachable.addAppender(output.build(context, name, layout));
         }
 
         final RequestLogHandler handler = new RequestLogHandler();
-        handler.setRequestLog(new AsyncRequestLog(appenders, timeZone));
+        handler.setRequestLog(new AsyncRequestLog(attachable, timeZone));
 
         return handler;
     }

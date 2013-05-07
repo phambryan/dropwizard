@@ -3,8 +3,8 @@ package com.codahale.dropwizard.setup;
 import com.codahale.dropwizard.jersey.DropwizardResourceConfig;
 import com.codahale.dropwizard.jersey.setup.JerseyContainerHolder;
 import com.codahale.dropwizard.jersey.setup.JerseyEnvironment;
-import com.codahale.dropwizard.lifecycle.setup.LifecycleEnvironment;
 import com.codahale.dropwizard.jetty.setup.ServletEnvironment;
+import com.codahale.dropwizard.lifecycle.setup.LifecycleEnvironment;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.health.HealthCheckRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -53,7 +53,6 @@ public class Environment {
         this.metricRegistry = metricRegistry;
         this.healthCheckRegistry = new HealthCheckRegistry();
         this.validator = validator;
-        final DropwizardResourceConfig jerseyConfig = new DropwizardResourceConfig(metricRegistry);
 
         this.servletContext = new ServletContextHandler();
         servletContext.setClassLoader(classLoader);
@@ -65,6 +64,7 @@ public class Environment {
 
         this.lifecycleEnvironment = new LifecycleEnvironment();
 
+        final DropwizardResourceConfig jerseyConfig = new DropwizardResourceConfig(metricRegistry);
         this.jerseyServletContainer = new JerseyContainerHolder(new ServletContainer(jerseyConfig));
         this.jerseyEnvironment = new JerseyEnvironment(jerseyServletContainer, jerseyConfig);
     }
