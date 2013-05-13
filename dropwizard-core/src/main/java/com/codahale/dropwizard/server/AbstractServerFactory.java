@@ -7,9 +7,8 @@ import com.codahale.dropwizard.jetty.NonblockingServletHolder;
 import com.codahale.dropwizard.jetty.RequestLogFactory;
 import com.codahale.dropwizard.lifecycle.setup.LifecycleEnvironment;
 import com.codahale.dropwizard.servlets.ThreadNameFilter;
-import com.codahale.dropwizard.util.Size;
-import com.codahale.dropwizard.util.SizeUnit;
-import com.codahale.dropwizard.validation.MinSize;
+import com.codahale.dropwizard.util.Duration;
+import com.codahale.dropwizard.validation.MinDuration;
 import com.codahale.dropwizard.validation.ValidationMethod;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.health.HealthCheckRegistry;
@@ -21,15 +20,18 @@ import com.codahale.metrics.servlets.MetricsServlet;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Charsets;
+import com.google.common.io.Resources;
 import com.sun.jersey.spi.container.servlet.ServletContainer;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.BlockingArrayQueue;
 import org.eclipse.jetty.util.thread.ThreadPool;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import javax.servlet.DispatcherType;
@@ -37,10 +39,60 @@ import javax.validation.Valid;
 import javax.validation.Validator;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
+import java.io.IOException;
 import java.util.EnumSet;
 import java.util.concurrent.BlockingQueue;
+import java.util.regex.Pattern;
 
+/**
+ * A base class for {@link ServerFactory} implementations.
+ * <p/>
+ * <b>Configuration Parameters:</b>
+ * <table>
+ *     <tr>
+ *         <td>Name</td>
+ *         <td>Default</td>
+ *         <td>Description</td>
+ *     </tr>
+ *     <tr>
+ *         <td>{@code requestLog}</td>
+ *         <td></td>
+ *         <td>The {@link RequestLogFactory request log} configuration.</td>
+ *     </tr>
+ *     <tr>
+ *         <td>{@code gzip}</td>
+ *         <td></td>
+ *         <td>The {@link GzipHandlerFactory GZIP} configuration.</td>
+ *     </tr>
+ *     <tr>
+ *         <td>{@code maxThreads}</td>
+ *         <td>1024</td>
+ *         <td>The maximum number of threads to use for requests.</td>
+ *     </tr>
+ *     <tr>
+ *         <td>{@code minThreads}</td>
+ *         <td>8</td>
+ *         <td>The minimum number of threads to use for requests.</td>
+ *     </tr>
+ *     <tr>
+ *         <td>{@code maxQueuedRequests}</td>
+ *         <td>1024</td>
+ *         <td>The maximum number of requests to queue before blocking the acceptors.</td>
+ *     </tr>
+ *     <tr>
+ *         <td>{@code idleThreadTimeout}</td>
+ *         <td>1 minute</td>
+ *         <td>The amount of time a worker thread can be idle before being stopped.</td>
+ *     </tr>
+ * </table>
+ *
+ * @see DefaultServerFactory
+ * @see SimpleServerFactory
+ */
 public abstract class AbstractServerFactory implements ServerFactory {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ServerFactory.class);
+    private static final Pattern WINDOWS_NEWLINE = Pattern.compile("\\r\\n?");
+
     @Valid
     @NotNull
     private RequestLogFactory requestLog = new RequestLogFactory();
@@ -55,11 +107,10 @@ public abstract class AbstractServerFactory implements ServerFactory {
     @Min(1)
     private int minThreads = 8;
 
-    @NotNull
-    @MinSize(value = 8, unit = SizeUnit.KILOBYTES)
-    private Size outputBufferSize = Size.kilobytes(32);
+    private int maxQueuedRequests = 1024;
 
-    private int maxQueuedRequests = Integer.MAX_VALUE;
+    @MinDuration(1)
+    private Duration idleThreadTimeout = Duration.minutes(1);
 
     @JsonIgnore
     @ValidationMethod(message = "must have a smaller minThreads than maxThreads")
@@ -108,16 +159,6 @@ public abstract class AbstractServerFactory implements ServerFactory {
     }
 
     @JsonProperty
-    public Size getOutputBufferSize() {
-        return outputBufferSize;
-    }
-
-    @JsonProperty
-    public void setOutputBufferSize(Size outputBufferSize) {
-        this.outputBufferSize = outputBufferSize;
-    }
-
-    @JsonProperty
     public int getMaxQueuedRequests() {
         return maxQueuedRequests;
     }
@@ -127,44 +168,43 @@ public abstract class AbstractServerFactory implements ServerFactory {
         this.maxQueuedRequests = maxQueuedRequests;
     }
 
-    protected Handler createInternalServlet(ServletContextHandler handler,
-                                            MetricRegistry metrics,
-                                            HealthCheckRegistry healthChecks) {
-        handler.getServletContext().setAttribute(MetricsServlet.METRICS_REGISTRY,
-                                                 metrics);
-        handler.getServletContext().setAttribute(HealthCheckServlet.HEALTH_CHECK_REGISTRY,
-                                                 healthChecks);
-        handler.addServlet(new NonblockingServletHolder(new AdminServlet()), "/*");
+    @JsonProperty
+    public Duration getIdleThreadTimeout() {
+        return idleThreadTimeout;
+    }
 
+    @JsonProperty
+    public void setIdleThreadTimeout(Duration idleThreadTimeout) {
+        this.idleThreadTimeout = idleThreadTimeout;
+    }
+
+    protected Handler createAdminServlet(ServletContextHandler handler,
+                                         MetricRegistry metrics,
+                                         HealthCheckRegistry healthChecks) {
+        handler.getServletContext().setAttribute(MetricsServlet.METRICS_REGISTRY, metrics);
+        handler.getServletContext().setAttribute(HealthCheckServlet.HEALTH_CHECK_REGISTRY, healthChecks);
+        handler.addServlet(new NonblockingServletHolder(new AdminServlet()), "/*");
         return handler;
     }
 
-    protected Handler createExternalServlet(JerseyEnvironment jersey,
-                                            ObjectMapper objectMapper,
-                                            Validator validator,
-                                            ServletContextHandler handler,
-                                            @Nullable ServletContainer jerseyContainer,
-                                            MetricRegistry metricRegistry) {
+    protected Handler createAppServlet(JerseyEnvironment jersey,
+                                       ObjectMapper objectMapper,
+                                       Validator validator,
+                                       ServletContextHandler handler,
+                                       @Nullable ServletContainer jerseyContainer,
+                                       MetricRegistry metricRegistry) {
         handler.addFilter(ThreadNameFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
         if (jerseyContainer != null) {
             jersey.addProvider(new JacksonMessageBodyProvider(objectMapper, validator));
-            final ServletHolder jerseyHolder = new NonblockingServletHolder(jerseyContainer);
-            jerseyHolder.setInitOrder(Integer.MAX_VALUE);
-            handler.addServlet(jerseyHolder, jersey.getUrlPattern());
+            handler.addServlet(new NonblockingServletHolder(jerseyContainer), jersey.getUrlPattern());
         }
         return new InstrumentedHandler(metricRegistry, handler);
     }
 
     protected ThreadPool createThreadPool(MetricRegistry metricRegistry) {
-        final BlockingQueue<Runnable> queue = new BlockingArrayQueue<>(minThreads,
-                                                                       maxThreads,
-                                                                       maxQueuedRequests);
-        return new InstrumentedQueuedThreadPool(metricRegistry,
-                                                "dw",
-                                                maxThreads,
-                                                minThreads,
-                                                60000,
-                                                queue);
+        final BlockingQueue<Runnable> queue = new BlockingArrayQueue<>(minThreads, maxThreads, maxQueuedRequests);
+        return new InstrumentedQueuedThreadPool(metricRegistry, "dw", maxThreads, minThreads,
+                                                (int) idleThreadTimeout.toMilliseconds(), queue);
     }
 
     protected Server buildServer(LifecycleEnvironment lifecycle, ThreadPool threadPool) {
@@ -179,11 +219,24 @@ public abstract class AbstractServerFactory implements ServerFactory {
 
     protected Handler addGzipAndRequestLog(Handler handler, String name) {
         final Handler gzipHandler = gzip.wrapHandler(handler);
-        if (getRequestLogFactory().isEnabled()) {
-            final RequestLogHandler requestLogHandler = getRequestLogFactory().build(name);
+        if (requestLog.isEnabled()) {
+            final RequestLogHandler requestLogHandler = requestLog.build(name);
             requestLogHandler.setHandler(gzipHandler);
             return requestLogHandler;
         }
         return gzipHandler;
+    }
+
+    protected void printBanner(String name) {
+        try {
+            final String banner = WINDOWS_NEWLINE.matcher(Resources.toString(Resources.getResource("banner.txt"),
+                                                                             Charsets.UTF_8))
+                                                 .replaceAll("\n")
+                                                 .replace("\n", String.format("%n"));
+            LOGGER.info(String.format("Starting {}%n{}"), name, banner);
+        } catch (IllegalArgumentException | IOException ignored) {
+            // don't display the banner if there isn't one
+            LOGGER.info("Starting {}", name);
+        }
     }
 }

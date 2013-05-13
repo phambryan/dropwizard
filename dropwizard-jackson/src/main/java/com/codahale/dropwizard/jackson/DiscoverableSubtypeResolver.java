@@ -2,6 +2,7 @@ package com.codahale.dropwizard.jackson;
 
 import com.fasterxml.jackson.databind.jsontype.impl.StdSubtypeResolver;
 import com.google.common.base.Charsets;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,17 +16,31 @@ import java.util.Enumeration;
 import java.util.List;
 
 /**
- * A subtype resolver which discovers subtypes via {@code META-INF/services/com.codahale.dropwizard.util.Subtyped}.
+ * A subtype resolver which discovers subtypes via
+ * {@code META-INF/services/com.codahale.dropwizard.jackson.Discoverable}.
  */
-public class ServiceSubtypeResolver extends StdSubtypeResolver {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ServiceSubtypeResolver.class);
+public class DiscoverableSubtypeResolver extends StdSubtypeResolver {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DiscoverableSubtypeResolver.class);
 
-    public ServiceSubtypeResolver(Class<?> rootKlass) {
+    private final ImmutableList<Class<?>> discoveredSubtypes;
+
+    public DiscoverableSubtypeResolver() {
+        this(Discoverable.class);
+    }
+
+    public DiscoverableSubtypeResolver(Class<?> rootKlass) {
+        final ImmutableList.Builder<Class<?>> subtypes = ImmutableList.builder();
         for (Class<?> klass : discoverServices(rootKlass)) {
             for (Class<?> subtype : discoverServices(klass)) {
+                subtypes.add(subtype);
                 registerSubtypes(subtype);
             }
         }
+        this.discoveredSubtypes = subtypes.build();
+    }
+
+    public ImmutableList<Class<?>> getDiscoveredSubtypes() {
+        return discoveredSubtypes;
     }
 
     protected List<Class<?>> discoverServices(Class<?> klass) {
