@@ -37,7 +37,7 @@ v0.7.0: TBD
 * Extracted out various elements of ``Environment`` to separate classes: ``JerseyEnvironment``,
   ``LifecycleEnvironment``, etc.
 * Upgraded to JDBI 2.49.
-* Upgraded to Logback 1.0.12.
+* Upgraded to Logback 1.0.13.
 * Upgraded to SLF4J 1.7.5.
 * Upgraded to Hibernate Validator 5.0.1.
 * Removed ``ManagedSessionFactory``.
@@ -49,6 +49,7 @@ v0.7.0: TBD
 * Added support for the Jetty HTTP client to ``dropwizard-client``.
 * Added Jackson Afterburner support.
 * Added ``dropwizard-forms``, which provides support for multipart MIME entities.
+* Added support for ``deflate``-encoded requests and responses.
 
 .. _rel-0.6.2:
 
