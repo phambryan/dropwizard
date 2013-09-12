@@ -48,6 +48,14 @@ public class PortRangeValidatorTest {
     }
 
     @Test
+    public void rejectsNegativePorts() throws Exception {
+        example.port = -1;
+
+        assertThat(ConstraintViolations.format(validator.validate(example)))
+                .containsOnly("port must be between 1 and 65535 (was -1)");
+    }
+
+    @Test
     public void allowsForCustomMinimumPorts() throws Exception {
         example.otherPort = 8080;
 

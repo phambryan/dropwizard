@@ -150,14 +150,12 @@ public class AssetServlet extends HttpServlet {
         URL requestedResourceURL = Resources.getResource(absoluteRequestedResourcePath);
         if (ResourceURL.isDirectory(requestedResourceURL)) {
             if (indexFile != null) {
-		String appendPath = absoluteRequestedResourcePath.endsWith("/") ? absoluteRequestedResourcePath + indexFile
-										: absoluteRequestedResourcePath + "/" + indexFile;
-                requestedResourceURL = Resources.getResource(appendPath);
+                requestedResourceURL = Resources.getResource(absoluteRequestedResourcePath + '/' + indexFile);
             } else {
                 // directory requested but no index file defined
                 return null;
             }
-        } 
+        }
 
         long lastModified = ResourceURL.getLastModified(requestedResourceURL);
         if (lastModified < 1) {
