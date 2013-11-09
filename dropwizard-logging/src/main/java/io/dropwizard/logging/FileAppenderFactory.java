@@ -172,7 +172,7 @@ public class FileAppenderFactory extends AbstractAppenderFactory {
         return wrapAsync(appender);
     }
 
-    private FileAppender<ILoggingEvent> buildAppender(LoggerContext context) {
+    protected FileAppender<ILoggingEvent> buildAppender(LoggerContext context) {
         if (archive) {
             final RollingFileAppender<ILoggingEvent> appender = new RollingFileAppender<>();
             final DefaultTimeBasedFileNamingAndTriggeringPolicy<ILoggingEvent> triggeringPolicy =
@@ -192,6 +192,7 @@ public class FileAppenderFactory extends AbstractAppenderFactory {
 
             rollingPolicy.setParent(appender);
             rollingPolicy.start();
+            return appender;
         }
         return new FileAppender<>();
     }
