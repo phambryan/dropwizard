@@ -28,6 +28,7 @@ import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.ErrorHandler;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
+import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.setuid.RLimit;
 import org.eclipse.jetty.setuid.SetUIDListener;
@@ -153,6 +154,14 @@ import java.util.regex.Pattern;
  *             Jetty's {@code libsetuid.so} on {@code java.library.path}.</b>
  *         </td>
  *     </tr>
+ *     <tr>
+ *         <td>{@code shutdownGracePeriod}</td>
+ *         <td>30 seconds</td>
+ *         <td>
+ *             The maximum time to wait for Jetty, and all Managed instances, to cleanly shutdown
+ *             before forcibly terminating them.
+ *         </td>
+ *     </tr>
  * </table>
  *
  * @see DefaultServerFactory
@@ -198,6 +207,8 @@ public abstract class AbstractServerFactory implements ServerFactory {
     private String umask;
 
     private Boolean startsAsRoot;
+
+    private Duration shutdownGracePeriod = Duration.seconds(30);
 
     @JsonIgnore
     @ValidationMethod(message = "must have a smaller minThreads than maxThreads")
@@ -345,6 +356,16 @@ public abstract class AbstractServerFactory implements ServerFactory {
         this.startsAsRoot = startsAsRoot;
     }
 
+    @JsonProperty
+    public Duration getShutdownGracePeriod() {
+        return shutdownGracePeriod;
+    }
+
+    @JsonProperty
+    public void setShutdownGracePeriod(Duration shutdownGracePeriod) {
+        this.shutdownGracePeriod = shutdownGracePeriod;
+    }
+
     protected Handler createAdminServlet(Server server,
                                          MutableServletContextHandler handler,
                                          MetricRegistry metrics,
@@ -405,6 +426,7 @@ public abstract class AbstractServerFactory implements ServerFactory {
         errorHandler.setShowStacks(false);
         server.addBean(errorHandler);
         server.setStopAtShutdown(true);
+        server.setStopTimeout(shutdownGracePeriod.toMilliseconds());
         return server;
     }
 
@@ -451,14 +473,26 @@ public abstract class AbstractServerFactory implements ServerFactory {
         return listener;
     }
 
-    protected Handler addRequestLog(Handler handler, String name) {
+    protected Handler addRequestLog(Server server, Handler handler, String name) {
         if (requestLog.isEnabled()) {
             final RequestLogHandler requestLogHandler = new RequestLogHandler();
             requestLogHandler.setRequestLog(requestLog.build(name));
+            // server should own the request log's lifecycle since it's already started,
+            // the handler might not become managed in case of an error which would leave
+            // the request log stranded
+            server.addBean(requestLogHandler.getRequestLog(), true);
             requestLogHandler.setHandler(handler);
             return requestLogHandler;
         }
         return handler;
+    }
+
+    protected Handler addStatsHandler(Handler handler) {
+        // Graceful shutdown is implemented via the statistics handler,
+        // see https://bugs.eclipse.org/bugs/show_bug.cgi?id=420142
+        StatisticsHandler statisticsHandler = new StatisticsHandler();
+        statisticsHandler.setHandler(handler);
+        return statisticsHandler;
     }
 
     protected void printBanner(String name) {
