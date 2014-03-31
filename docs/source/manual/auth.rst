@@ -77,7 +77,7 @@ takes instances of ``BasicCredentials``:
     @Override
     public void run(ExampleConfiguration configuration,
                     Environment environment) {
-        environment.addProvider(new BasicAuthProvider<User>(new ExampleAuthenticator(),
+        environment.jersey().register(new BasicAuthProvider<User>(new ExampleAuthenticator(),
                                                             "SUPER SECRET STUFF"));
     }
 
@@ -89,16 +89,12 @@ OAuth2
 The ``OAuthProvider`` enables OAuth2 bearer-token authentication, and requires an authenticator
 which takes an instance of ``String``.
 
-.. note:: Because OAuth2 is not finalized, this implementation may change in the future. The
-          expectation is that tokens are passed in via the ``Authorization`` header using the
-          ``Bearer`` scheme.
-
 .. code-block:: java
 
     @Override
     public void run(ExampleConfiguration configuration,
                     Environment environment) {
-        environment.addProvider(new OAuthProvider<User>(new ExampleAuthenticator(),
+        environment.jersey().register(new OAuthProvider<User>(new ExampleAuthenticator(),
                                                         "SUPER SECRET STUFF"));
     }
 

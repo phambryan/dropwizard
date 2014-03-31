@@ -43,8 +43,8 @@ Then, in your application's ``run`` method, create a new ``HttpClientBuilder``:
     @Override
     public void run(ExampleConfiguration config,
                     Environment environment) {
-        final HttpClient httpClient = new HttpClientBuilder().using(config.getHttpClientConfiguration())
-                                                             .build();
+        final HttpClient httpClient = new HttpClientBuilder(environment).using(config.getHttpClientConfiguration())
+                                                                        .build();
         environment.addResource(new ExternalServiceResource(httpClient));
     }
 
@@ -112,14 +112,14 @@ following pieces of data:
 
 .. _man-client-jersey:
 
-Jersey Client, version 1.17.1
-=============================
+Jersey Client, version 1.18
+===========================
 
 If HttpClient_ is too low-level for you, Dropwizard also supports Jersey's `Client API`_.
 Jersey's ``Client`` allows you to use all of the server-side media type support that your service
 uses to, for example, deserialize ``application/json`` request entities as POJOs.
 
-.. _Client API: https://jersey.java.net/documentation/1.17/client-api.html
+.. _Client API: https://jersey.java.net/documentation/1.18/client-api.html
 
 To create a :ref:`managed <man-core-managed>`, instrumented ``JerseyClient`` instance, your
 :ref:`configuration class <man-core-configuration>` needs an ``JerseyClientConfiguration`` instance:
@@ -144,9 +144,9 @@ Then, in your service's ``run`` method, create a new ``JerseyClientBuilder``:
     @Override
     public void run(ExampleConfiguration config,
                     Environment environment) {
-        final Client client = new JerseyClientBuilder().using(config.getJerseyClientConfiguration())
-                                                       .using(environment)
-                                                       .build();
+
+        final Client client = new JerseyClientBuilder(environment).using(config.getJerseyClientConfiguration())
+                                                                  .build(getName());                                                       
         environment.addResource(new ExternalServiceResource(client));
     }
 
