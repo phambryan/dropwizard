@@ -27,10 +27,7 @@ writing via a ``PUT`` request) and a response entity (e.g., when reading via a `
 .. code-block:: java
 
     public class Person {
-        @JsonProperty
         private String name;
-
-        @JsonProperty
         private String email;
 
         private Person() {
@@ -42,18 +39,22 @@ writing via a ``PUT`` request) and a response entity (e.g., when reading via a `
             this.email = email;
         }
 
+        @JsonProperty
         public String getName() {
             return name;
         }
 
+        @JsonProperty
         public void setName(String name) {
             this.name = name;
         }
 
+        @JsonProperty
         public String getEmail() {
             return email;
         }
 
+        @JsonProperty
         public void setEmail(String email) {
             this.email = email;
         }
@@ -210,8 +211,8 @@ easily.
 Should you, at some point, grow tired of the near-infinite amount of debug logging produced by
 ``ResourceTestRule`` you can use the ``java.util.logging`` API to silence the ``com.sun.jersey`` logger.
 
-Integrated Testing
-==================
+Integration Testing
+===================
 It can be useful to start up your entire app and hit it with real HTTP requests during testing. This can be
 achieved by adding ``DropwizardAppRule`` to your JUnit test class, which will start the app prior to any tests
 running and stop it again when they've completed (roughly equivalent to having used ``@BeforeClass`` and ``@AfterClass``).
