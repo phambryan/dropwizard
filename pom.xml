@@ -62,6 +62,7 @@
         <jetty.version>9.0.7.v20131107</jetty.version>
         <guava.version>17.0</guava.version>
         <h2.version>1.4.178</h2.version>
+        <assertj.version>1.6.1</assertj.version>
         <findbugs.skip>false</findbugs.skip>
     </properties>
 
@@ -134,6 +135,14 @@
             <name>Jochen Schalanda</name>
             <email>jochen@schalanda.name</email>
             <timezone>Europe/Berlin</timezone>
+            <roles>
+                <role>committer</role>
+            </roles>
+        </developer>
+        <developer>
+            <name>Glenn McAllister</name>
+            <email>glenn.mcallister@gmail.com</email>
+            <timezone>America/Toronto</timezone>
             <roles>
                 <role>committer</role>
             </roles>
@@ -263,9 +272,9 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.easytesting</groupId>
-            <artifactId>fest-assert-core</artifactId>
-            <version>2.0M10</version>
+	    <groupId>org.assertj</groupId>
+	    <artifactId>assertj-core</artifactId>
+	    <version>${assertj.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -414,6 +423,24 @@
                         </manifest>
                     </archive>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.7.1.201405082137</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.eluder.coveralls</groupId>
+                <artifactId>coveralls-maven-plugin</artifactId>
+                <version>2.2.0</version>
             </plugin>
         </plugins>
     </build>
