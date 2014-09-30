@@ -1,11 +1,12 @@
 package io.dropwizard.testing.junit;
 
-import com.sun.jersey.api.client.Client;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import javax.ws.rs.client.ClientBuilder;
+
+import static io.dropwizard.testing.ResourceHelpers.resourceFilePath;
 import static io.dropwizard.testing.junit.ConfigOverride.config;
-import static io.dropwizard.testing.junit.DropwizardAppRuleTest.resourceFilePath;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 
@@ -13,14 +14,13 @@ public class DropwizardServiceRuleConfigOverrideTest {
 
     @ClassRule
     public static final DropwizardAppRule<TestConfiguration> RULE =
-            new DropwizardAppRule<TestConfiguration>(TestApplication.class,
-                                                     resourceFilePath("test-config.yaml"),
-                                                     config("message", "A new way to say Hooray!"));
+            new DropwizardAppRule<TestConfiguration>(TestApplication.class, resourceFilePath("test-config.yaml"),
+                    config("message", "A new way to say Hooray!"));
 
     @Test
     public void supportsConfigAttributeOverrides() {
-        final String content = new Client().resource("http://localhost:" + RULE.getLocalPort() + "/test")
-                                           .get(String.class);
+        final String content = ClientBuilder.newClient().target("http://localhost:" + RULE.getLocalPort() + "/test")
+                .request().get(String.class);
 
         assertThat(content, is("A new way to say Hooray!"));
     }

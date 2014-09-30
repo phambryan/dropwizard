@@ -4,10 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Objects;
 import com.google.common.reflect.TypeToken;
-import com.sun.jersey.core.util.MultivaluedMapImpl;
-import com.sun.jersey.core.util.StringKeyObjectValueIgnoreCaseMultivaluedMap;
 import io.dropwizard.jackson.Jackson;
 import io.dropwizard.validation.ConstraintViolations;
 import io.dropwizard.validation.Validated;
@@ -22,12 +19,19 @@ import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.MultivaluedHashMap;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
-import java.util.*;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.failBecauseExceptionWasNotThrown;
@@ -37,8 +41,6 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
-
-// TODO: 4/24/13 <coda> -- move JacksonMessageBodyProviderTest to JerseyTest
 
 @SuppressWarnings("unchecked")
 public class JacksonMessageBodyProviderTest {
@@ -51,12 +53,19 @@ public class JacksonMessageBodyProviderTest {
 
         @Override
         public int hashCode() {
-            return id;
+            return Objects.hash(id);
         }
 
         @Override
         public boolean equals(Object obj) {
-            return Objects.equal(this.id, obj);
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null || getClass() != obj.getClass()) {
+                return false;
+            }
+            final Example other = (Example) obj;
+            return Objects.equals(this.id, other.id);
         }
     }
 
@@ -151,7 +160,7 @@ public class JacksonMessageBodyProviderTest {
                                              Example.class,
                                              NONE,
                                              MediaType.APPLICATION_JSON_TYPE,
-                                             new MultivaluedMapImpl(),
+                                             new MultivaluedHashMap<String,String>(),
                                              entity);
 
         assertThat(obj)
@@ -174,7 +183,7 @@ public class JacksonMessageBodyProviderTest {
             PartialExample.class,
             new Annotation[]{valid},
             MediaType.APPLICATION_JSON_TYPE,
-            new MultivaluedMapImpl(),
+            new MultivaluedHashMap<String,String>(),
             entity);
 
         assertThat(obj)
@@ -197,7 +206,7 @@ public class JacksonMessageBodyProviderTest {
             PartialExample.class,
             new Annotation[]{valid},
             MediaType.APPLICATION_JSON_TYPE,
-            new MultivaluedMapImpl(),
+            new MultivaluedHashMap<String,String>(),
             entity);
 
         assertThat(obj)
@@ -221,7 +230,7 @@ public class JacksonMessageBodyProviderTest {
                               PartialExample.class,
                               new Annotation[]{ valid },
                               MediaType.APPLICATION_JSON_TYPE,
-                              new MultivaluedMapImpl(),
+                              new MultivaluedHashMap<String,String>(),
                               entity);
             failBecauseExceptionWasNotThrown(ConstraintViolationException.class);
         } catch(ConstraintViolationException e) {
@@ -242,7 +251,7 @@ public class JacksonMessageBodyProviderTest {
                                              Example.class,
                                              new Annotation[]{ valid },
                                              MediaType.APPLICATION_JSON_TYPE,
-                                             new MultivaluedMapImpl(),
+                                             new MultivaluedHashMap<String,String>(),
                                              entity);
 
         assertThat(obj)
@@ -265,7 +274,7 @@ public class JacksonMessageBodyProviderTest {
                               Example.class,
                               new Annotation[]{ valid },
                               MediaType.APPLICATION_JSON_TYPE,
-                              new MultivaluedMapImpl(),
+                              new MultivaluedHashMap<String,String>(),
                               entity);
             failBecauseExceptionWasNotThrown(ConstraintViolationException.class);
         } catch (ConstraintViolationException e) {
@@ -284,7 +293,7 @@ public class JacksonMessageBodyProviderTest {
                               Example.class,
                               NONE,
                               MediaType.APPLICATION_JSON_TYPE,
-                              new MultivaluedMapImpl(),
+                              new MultivaluedHashMap<String,String>(),
                               entity);
             failBecauseExceptionWasNotThrown(WebApplicationException.class);
         } catch (JsonProcessingException e) {
@@ -306,7 +315,7 @@ public class JacksonMessageBodyProviderTest {
                          Example.class,
                          NONE,
                          MediaType.APPLICATION_JSON_TYPE,
-                         new StringKeyObjectValueIgnoreCaseMultivaluedMap(),
+                         new MultivaluedHashMap<String,Object>(),
                          output);
 
         assertThat(output.toString())
@@ -323,7 +332,7 @@ public class JacksonMessageBodyProviderTest {
                 Example.class,
                 new Annotation[]{valid},
                 MediaType.APPLICATION_JSON_TYPE,
-                new MultivaluedMapImpl(),
+                new MultivaluedHashMap<String,String>(),
                 null);
     }
 
@@ -339,7 +348,7 @@ public class JacksonMessageBodyProviderTest {
                 Example[].class,
                 new Annotation[]{ valid },
                 MediaType.APPLICATION_JSON_TYPE,
-                new MultivaluedMapImpl(),
+                new MultivaluedHashMap(),
                 entity);
 
         assertThat(obj)
@@ -381,7 +390,7 @@ public class JacksonMessageBodyProviderTest {
                 new TypeToken<Map<Object, Example>>() {}.getType(),
                 new Annotation[]{ valid },
                 MediaType.APPLICATION_JSON_TYPE,
-                new MultivaluedMapImpl(),
+                new MultivaluedHashMap(),
                 entity);
 
         assertThat(obj)
@@ -402,7 +411,7 @@ public class JacksonMessageBodyProviderTest {
                 type,
                 new Annotation[]{ valid },
                 MediaType.APPLICATION_JSON_TYPE,
-                new MultivaluedMapImpl(),
+                new MultivaluedHashMap(),
                 entity);
 
         assertThat(obj)
@@ -426,7 +435,7 @@ public class JacksonMessageBodyProviderTest {
                     new TypeToken<Collection<Example>>() {}.getType(),
                     new Annotation[]{ valid },
                     MediaType.APPLICATION_JSON_TYPE,
-                    new MultivaluedMapImpl(),
+                    new MultivaluedHashMap(),
                     entity);
             failBecauseExceptionWasNotThrown(ConstraintViolationException.class);
         } catch (ConstraintViolationException e) {
@@ -449,7 +458,7 @@ public class JacksonMessageBodyProviderTest {
                     new TypeToken<Collection<Example>>() {}.getType(),
                     new Annotation[]{ valid },
                     MediaType.APPLICATION_JSON_TYPE,
-                    new MultivaluedMapImpl(),
+                    new MultivaluedHashMap(),
                     entity);
             failBecauseExceptionWasNotThrown(ConstraintViolationException.class);
         } catch (ConstraintViolationException e) {
@@ -471,7 +480,7 @@ public class JacksonMessageBodyProviderTest {
                     new TypeToken<Set<Example>>() {}.getType(),
                     new Annotation[]{ valid },
                     MediaType.APPLICATION_JSON_TYPE,
-                    new MultivaluedMapImpl(),
+                    new MultivaluedHashMap(),
                     entity);
             failBecauseExceptionWasNotThrown(ConstraintViolationException.class);
         } catch (ConstraintViolationException e) {
@@ -494,7 +503,7 @@ public class JacksonMessageBodyProviderTest {
                     new TypeToken<List<Example>>() {}.getType(),
                     new Annotation[]{ valid },
                     MediaType.APPLICATION_JSON_TYPE,
-                    new MultivaluedMapImpl(),
+                    new MultivaluedHashMap(),
                     entity);
             failBecauseExceptionWasNotThrown(ConstraintViolationException.class);
         } catch (ConstraintViolationException e) {
@@ -517,7 +526,7 @@ public class JacksonMessageBodyProviderTest {
                     new TypeToken<Map<Object, Example>>() {}.getType(),
                     new Annotation[]{ valid },
                     MediaType.APPLICATION_JSON_TYPE,
-                    new MultivaluedMapImpl(),
+                    new MultivaluedHashMap(),
                     entity);
             failBecauseExceptionWasNotThrown(ConstraintViolationException.class);
         } catch (ConstraintViolationException e) {
@@ -540,7 +549,7 @@ public class JacksonMessageBodyProviderTest {
                 new TypeToken<List<ListExample>>() {}.getType(),
                 new Annotation[]{ valid },
                 MediaType.APPLICATION_JSON_TYPE,
-                new MultivaluedMapImpl(),
+                new MultivaluedHashMap(),
                 entity);
 
         assertThat(obj)
@@ -564,7 +573,7 @@ public class JacksonMessageBodyProviderTest {
                     new TypeToken<List<ListExample>>() {}.getType(),
                     new Annotation[]{ valid },
                     MediaType.APPLICATION_JSON_TYPE,
-                    new MultivaluedMapImpl(),
+                    new MultivaluedHashMap(),
                     entity);
             failBecauseExceptionWasNotThrown(ConstraintViolationException.class);
         } catch (ConstraintViolationException e) {

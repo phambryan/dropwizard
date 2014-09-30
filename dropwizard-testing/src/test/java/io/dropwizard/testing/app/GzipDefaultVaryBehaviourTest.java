@@ -1,14 +1,15 @@
 package io.dropwizard.testing.app;
 
-import com.sun.jersey.api.client.Client;
-import com.sun.jersey.api.client.ClientResponse;
 import io.dropwizard.testing.junit.DropwizardAppRule;
-import io.dropwizard.testing.junit.DropwizardAppRuleTest;
 import io.dropwizard.testing.junit.TestApplication;
 import io.dropwizard.testing.junit.TestConfiguration;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.core.Response;
+
+import static io.dropwizard.testing.ResourceHelpers.resourceFilePath;
 import static java.util.Arrays.asList;
 import static javax.ws.rs.core.HttpHeaders.ACCEPT_ENCODING;
 import static javax.ws.rs.core.HttpHeaders.CONTENT_ENCODING;
@@ -19,17 +20,18 @@ public class GzipDefaultVaryBehaviourTest {
 
     @ClassRule
     public static final DropwizardAppRule<TestConfiguration> RULE =
-            new DropwizardAppRule<>(TestApplication.class, DropwizardAppRuleTest.resourceFilePath("test-config.yaml"));
+            new DropwizardAppRule<>(TestApplication.class, resourceFilePath("test-config.yaml"));
 
     @Test
     public void testDefaultVaryHeader() {
-        final ClientResponse clientResponse = new Client().resource("http://localhost:" +
+        final Response clientResponse = ClientBuilder.newClient().target("http://localhost:" +
                 RULE.getLocalPort()
                 +"/test")
+                .request()
                 .header(ACCEPT_ENCODING, "gzip")
-                .get(ClientResponse.class);
+                .get();
 
-        assertThat(clientResponse.getHeaders().get(VARY)).isEqualTo(asList(ACCEPT_ENCODING));
-        assertThat(clientResponse.getHeaders().get(CONTENT_ENCODING)).isEqualTo(asList("gzip"));
+        assertThat(clientResponse.getHeaders().get(VARY)).isEqualTo(asList((Object)ACCEPT_ENCODING));
+        assertThat(clientResponse.getHeaders().get(CONTENT_ENCODING)).isEqualTo(asList((Object) "gzip"));
     }
 }
