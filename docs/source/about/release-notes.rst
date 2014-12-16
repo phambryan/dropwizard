@@ -15,15 +15,16 @@ v0.8.0:
 * Upgrade to H2 1.4.182
 * Upgrade to Hibernate 4.3.7.Final
 * Upgrade to Hibernate Validator 5.1.3.Final
-* Upgrade to Jackson 2.4.3
+* Upgrade to Jackson 2.4.4
 * Upgrade to Jersey 2.13
-* Upgrade to Jetty 9.2.4.v20141103
-* Upgrade to Joda-Time 2.5
-* Upgrade to Liquibase 3.3.0
+* Upgrade to Jetty 9.2.5.v20141112
+* Upgrade to Joda-Time 2.6
+* Upgrade to Liquibase 3.3.1
 * Upgrade to Mustache 0.8.16
 * Upgrade to SLF4J 1.7.7
 * Upgrade to tomcat-jdbc 8.0.15
 * Upgrade to JSR305 annotations 3.0.0
+* Upgrade to Junit 4.12
 * Upgrade to AssertJ 1.7.0
 * Upgrade to Mockito 1.10.8
 
