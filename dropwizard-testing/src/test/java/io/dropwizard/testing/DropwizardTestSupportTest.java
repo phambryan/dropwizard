@@ -1,4 +1,4 @@
-package io.dropwizard.testing.junit;
+package io.dropwizard.testing;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableCollection;
@@ -8,7 +8,8 @@ import io.dropwizard.Configuration;
 import io.dropwizard.servlets.tasks.Task;
 import io.dropwizard.setup.Environment;
 import org.hibernate.validator.constraints.NotEmpty;
-import org.junit.ClassRule;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import javax.ws.rs.GET;
@@ -23,37 +24,46 @@ import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
-public class DropwizardAppRuleTest {
+public class DropwizardTestSupportTest {
 
-    @ClassRule
-    public static final DropwizardAppRule<TestConfiguration> RULE =
-            new DropwizardAppRule<>(TestApplication.class, resourceFilePath("test-config.yaml"));
+    public static final DropwizardTestSupport<TestConfiguration> TEST_SUPPORT =
+            new DropwizardTestSupport<>(TestApplication.class, resourceFilePath("test-config.yaml"));
+
+    @BeforeClass
+    public static void setUp(){
+        TEST_SUPPORT.before();
+    }
+
+    @AfterClass
+    public static void tearDown(){
+        TEST_SUPPORT.after();
+    }
 
     @Test
     public void canGetExpectedResourceOverHttp() {
         final String content = ClientBuilder.newClient().target("http://localhost:" +
-                                         RULE.getLocalPort()
-                                         +"/test")
-                                         .request().get(String.class);
+                TEST_SUPPORT.getLocalPort()
+                +"/test")
+                .request().get(String.class);
 
         assertThat(content, is("Yes, it's here"));
     }
 
     @Test
     public void returnsConfiguration() {
-        final TestConfiguration config = RULE.getConfiguration();
+        final TestConfiguration config = TEST_SUPPORT.getConfiguration();
         assertThat(config.getMessage(), is("Yes, it's here"));
     }
 
     @Test
     public void returnsApplication() {
-        final TestApplication application = RULE.getApplication();
+        final TestApplication application = TEST_SUPPORT.getApplication();
         assertNotNull(application);
     }
 
     @Test
     public void returnsEnvironment() {
-        final Environment environment = RULE.getEnvironment();
+        final Environment environment = TEST_SUPPORT.getEnvironment();
         assertThat(environment.getName(), is("TestApplication"));
     }
 
@@ -61,7 +71,7 @@ public class DropwizardAppRuleTest {
     public void canPerformAdminTask() {
         final String response
                 = ClientBuilder.newClient().target("http://localhost:"
-                        + RULE.getAdminPort() + "/tasks/hello?name=test_user")
+                + TEST_SUPPORT.getAdminPort() + "/tasks/hello?name=test_user")
                 .request()
                 .post(Entity.entity("", MediaType.TEXT_PLAIN), String.class);
 
