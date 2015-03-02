@@ -620,6 +620,7 @@ The following options are available for all metrics reporters.
           rateUnit: seconds
           excludes: (none)
           includes: (all)
+          useRegexFilters: false
           frequency: 1 second
 
 
@@ -630,9 +631,17 @@ durationUnit           milliseconds   The unit to report durations as. Overrides
 rateUnit               seconds        The unit to report rates as. Overrides per-metric rate units.
 excludes               (none)         Metrics to exclude from reports, by name. When defined, matching metrics will not be reported.
 includes               (all)          Metrics to include in reports, by name. When defined, only these metrics will be reported.
+useRegexFilters        false          Indicates whether the values of the 'includes' and 'excludes' fields should be treated as regular expressions or not.
 frequency              (none)         The frequency to report metrics. Overrides the default.
 ====================== =============  ===========
 
+The inclusion and exclusion rules are defined as:
+
+* If **includes** is empty, then all metrics are included;
+* If **includes** is not empty, only metrics from this list are included;
+* If **excludes** is empty, no metrics are excluded;
+* If **excludes** is not empty, then exclusion rules take precedence over inclusion rules. Thus if a name matches
+the exclusion rules it will not be included in reports even if it also matches the inclusion rules.
 
 .. _man-configuration-metrics-formatted:
 
@@ -879,6 +888,7 @@ See JerseyClientConfiguration_ and HttpClientConfiguration_ for more options.
     jerseyClient:
       minThreads: 1
       maxThreads: 128
+      workQueueSize: 8
       gzipEnabled: true
       gzipEnabledForRequests: true
       chunkedEncodingEnabled: true
@@ -889,6 +899,8 @@ Name                    Default             Description
 ======================= ==================  ===================================================================================================
 minThreads              1                   The minimum number of threads in the pool used for asynchronous requests.
 maxThreads              128                 The maximum number of threads in the pool used for asynchronous requests.
+workQueueSize           8                   The size of the work queue of the pool used for asynchronous requests.
+                                            Additional threads will be spawn only if the queue is reached its maximum size.
 gzipEnabled             true                Adds an Accept-Encoding: gzip header to all requests, and enables automatic gzip decoding of responses.
 gzipEnabledForRequests  true                Adds a Content-Encoding: gzip header to all requests, and enables automatic gzip encoding of requests.
 chunkedEncodingEnabled  true                Enables the use of chunked encoding for requests.
