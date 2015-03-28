@@ -78,7 +78,7 @@ public class UnitOfWorkApplicationListener implements ApplicationEventListener {
                     }
                 }
             }
-            else if (event.getType() == RequestEvent.Type.RESOURCE_METHOD_FINISHED) {
+            else if (event.getType() == RequestEvent.Type.RESP_FILTERS_START) {
                 if (this.session != null) {
                     try {
                         commitTransaction();
@@ -171,6 +171,10 @@ public class UnitOfWorkApplicationListener implements ApplicationEventListener {
 
     private void registerUnitOfWorkAnnotations (ResourceMethod method) {
         UnitOfWork annotation = method.getInvocable().getDefinitionMethod().getAnnotation(UnitOfWork.class);
+
+        if (annotation == null) {
+            annotation = method.getInvocable().getHandlingMethod().getAnnotation(UnitOfWork.class);
+        }
 
         if (annotation != null) {
             this.methodMap.put(method.getInvocable().getDefinitionMethod(), annotation);

@@ -39,7 +39,7 @@ public class UnitOfWorkApplicationListenerTest {
 
     private final RequestEvent requestStartEvent = mock(RequestEvent.class);
     private final RequestEvent requestMethodStartEvent = mock(RequestEvent.class);
-    private final RequestEvent requestMethodFinishEvent = mock(RequestEvent.class);
+    private final RequestEvent responseFiltersStartEvent = mock(RequestEvent.class);
     private final RequestEvent requestMethodExceptionEvent = mock(RequestEvent.class);
     private final Session session = mock(Session.class);
     private final Transaction transaction = mock(Transaction.class);
@@ -56,10 +56,10 @@ public class UnitOfWorkApplicationListenerTest {
 
         when(appEvent.getType()).thenReturn(ApplicationEvent.Type.INITIALIZATION_APP_FINISHED);
         when(requestMethodStartEvent.getType()).thenReturn(RequestEvent.Type.RESOURCE_METHOD_START);
-        when(requestMethodFinishEvent.getType()).thenReturn(RequestEvent.Type.RESOURCE_METHOD_FINISHED);
+        when(responseFiltersStartEvent.getType()).thenReturn(RequestEvent.Type.RESP_FILTERS_START);
         when(requestMethodExceptionEvent.getType()).thenReturn(RequestEvent.Type.ON_EXCEPTION);
         when(requestMethodStartEvent.getUriInfo()).thenReturn(uriInfo);
-        when(requestMethodFinishEvent.getUriInfo()).thenReturn(uriInfo);
+        when(responseFiltersStartEvent.getUriInfo()).thenReturn(uriInfo);
         when(requestMethodExceptionEvent.getUriInfo()).thenReturn(uriInfo);
 
         prepareAppEvent("methodWithDefaultAnnotation");
@@ -131,6 +131,36 @@ public class UnitOfWorkApplicationListenerTest {
     }
 
     @Test
+    public void detectsAnnotationOnHandlingMethod() throws NoSuchMethodException {
+        final String resourceMethodName = "handlingMethodAnnotated";
+        prepareAppEvent(resourceMethodName);
+
+        execute();
+
+        verify(session).setDefaultReadOnly(true);
+    }
+
+    @Test
+    public void detectsAnnotationOnDefinitionMethod() throws NoSuchMethodException {
+        final String resourceMethodName = "definitionMethodAnnotated";
+        prepareAppEvent(resourceMethodName);
+
+        execute();
+
+        verify(session).setDefaultReadOnly(true);
+    }
+
+    @Test
+    public void annotationOnDefinitionMethodOverridesHandlingMethod() throws NoSuchMethodException {
+        final String resourceMethodName = "bothMethodsAnnotated";
+        prepareAppEvent(resourceMethodName);
+
+        execute();
+
+        verify(session).setDefaultReadOnly(true);
+    }
+
+    @Test
     public void beginsAndCommitsATransactionIfTransactional() throws Exception {
         execute();
 
@@ -189,10 +219,17 @@ public class UnitOfWorkApplicationListenerTest {
     private void prepareAppEvent(String resourceMethodName) throws NoSuchMethodException {
         final Resource.Builder builder = Resource.builder();
         final MockResource mockResource = new MockResource();
-        final Method method = mockResource.getClass().getMethod(resourceMethodName);
+        final Method handlingMethod = mockResource.getClass().getMethod(resourceMethodName);
+
+        Method definitionMethod = handlingMethod;
+        Class<?> interfaceClass = mockResource.getClass().getInterfaces()[0];
+        if (methodDefinedOnInterface(resourceMethodName, interfaceClass.getMethods())) {
+            definitionMethod = interfaceClass.getMethod(resourceMethodName);
+        }
+
         final ResourceMethod resourceMethod = builder.addMethod()
-                .handlingMethod(method)
-                .handledBy(mockResource, method).build();
+                .handlingMethod(handlingMethod)
+                .handledBy(mockResource, definitionMethod).build();
         final Resource resource = builder.build();
         final ResourceModel model = new ResourceModel.Builder(false).addResource(resource).build();
 
@@ -200,11 +237,20 @@ public class UnitOfWorkApplicationListenerTest {
         when(uriInfo.getMatchedResourceMethod()).thenReturn(resourceMethod);
     }
 
+    private boolean methodDefinedOnInterface(String methodName, Method[] methods) {
+        for (Method method : methods) {
+            if (method.getName().equals(methodName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void execute() {
         listener.onEvent(appEvent);
         RequestEventListener requestListener = listener.onRequest(requestStartEvent);
         requestListener.onEvent(requestMethodStartEvent);
-        requestListener.onEvent(requestMethodFinishEvent);
+        requestListener.onEvent(responseFiltersStartEvent);
     }
 
     private void executeWithException() {
@@ -214,11 +260,12 @@ public class UnitOfWorkApplicationListenerTest {
         requestListener.onEvent(requestMethodExceptionEvent);
     }
 
-    public static class MockResource {
+    public static class MockResource implements MockResourceInterface {
 
         @UnitOfWork(readOnly = false, cacheMode = CacheMode.NORMAL, transactional = true, flushMode = FlushMode.AUTO)
         public void methodWithDefaultAnnotation() {
         }
+
         @UnitOfWork(readOnly = true, cacheMode = CacheMode.NORMAL, transactional = true, flushMode = FlushMode.AUTO)
         public void methodWithReadOnlyAnnotation() {
         }
@@ -234,5 +281,31 @@ public class UnitOfWorkApplicationListenerTest {
         @UnitOfWork(readOnly = false, cacheMode = CacheMode.NORMAL, transactional = false, flushMode = FlushMode.AUTO)
         public void methodWithTransactionalFalseAnnotation() {
         }
+
+        @UnitOfWork(readOnly = true)
+        @Override
+        public void handlingMethodAnnotated() {
+        }
+
+        @Override
+        public void definitionMethodAnnotated() {
+        }
+
+        @UnitOfWork(readOnly = false)
+        @Override
+        public void bothMethodsAnnotated() {
+
+        }
+    }
+
+    public static interface MockResourceInterface {
+
+        void handlingMethodAnnotated();
+
+        @UnitOfWork(readOnly = true)
+        void definitionMethodAnnotated();
+
+        @UnitOfWork(readOnly = true)
+        void bothMethodsAnnotated();
     }
 }

@@ -11,23 +11,27 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import io.dropwizard.jackson.Jackson;
+import org.glassfish.jersey.filter.LoggingFilter;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static javax.ws.rs.core.MediaType.TEXT_PLAIN;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -128,8 +132,9 @@ public class JerseyClientIntegrationTest {
     }
 
     private void postRequest(JerseyClientConfiguration configuration) {
+        ExecutorService executor = Executors.newSingleThreadExecutor();
         Client jersey = new JerseyClientBuilder(new MetricRegistry())
-                .using(Executors.newSingleThreadExecutor(), JSON_MAPPER)
+                .using(executor, JSON_MAPPER)
                 .using(configuration)
                 .build("jersey-test");
         Response response = jersey.target("http://127.0.0.1:" + httpServer.getAddress().getPort() + "/register")
@@ -143,6 +148,9 @@ public class JerseyClientIntegrationTest {
         Credentials credentials = response.readEntity(Credentials.class);
         assertThat(credentials.id).isEqualTo(214);
         assertThat(credentials.token).isEqualTo("a23f78bc31cc5de821ad9412e");
+
+        executor.shutdown();
+        jersey.close();
     }
 
     private void postResponse(HttpExchange httpExchange) throws IOException {
@@ -192,8 +200,9 @@ public class JerseyClientIntegrationTest {
         });
         httpServer.start();
 
+        ExecutorService executor = Executors.newSingleThreadExecutor();
         Client jersey = new JerseyClientBuilder(new MetricRegistry())
-                .using(Executors.newSingleThreadExecutor(), JSON_MAPPER)
+                .using(executor, JSON_MAPPER)
                 .using(new JerseyClientConfiguration())
                 .build("jersey-test");
         Response response = jersey.target("http://127.0.0.1:" + httpServer.getAddress().getPort() + "/player?id=21")
@@ -207,6 +216,9 @@ public class JerseyClientIntegrationTest {
         Person person = response.readEntity(Person.class);
         assertThat(person.email).isEqualTo("john@doe.me");
         assertThat(person.name).isEqualTo("John Doe");
+
+        executor.shutdown();
+        jersey.close();
     }
 
     @Test
@@ -229,8 +241,9 @@ public class JerseyClientIntegrationTest {
         JerseyClientConfiguration configuration = new JerseyClientConfiguration();
         configuration.setUserAgent(Optional.of("Custom user-agent"));
 
+        ExecutorService executor = Executors.newSingleThreadExecutor();
         Client jersey = new JerseyClientBuilder(new MetricRegistry())
-                .using(Executors.newSingleThreadExecutor(), JSON_MAPPER)
+                .using(executor, JSON_MAPPER)
                 .using(configuration)
                 .build("jersey-test");
         String text = jersey.target("http://127.0.0.1:" + httpServer.getAddress().getPort() + "/test")
@@ -239,6 +252,53 @@ public class JerseyClientIntegrationTest {
                 .invoke()
                 .readEntity(String.class);
         assertThat(text).isEqualTo("Hello World!");
+
+        executor.shutdown();
+        jersey.close();
+    }
+
+    /**
+     * Test for ConnectorProvider idempotency
+     */
+    @Test
+    public void testFilterOnAWebTarget() {
+        httpServer.createContext("/test", new HttpHandler() {
+            @Override
+            public void handle(HttpExchange httpExchange) throws IOException {
+                try {
+                    httpExchange.getResponseHeaders().add(HttpHeaders.CONTENT_TYPE, TEXT_PLAIN);
+                    httpExchange.sendResponseHeaders(200, 0);
+                    httpExchange.getResponseBody().write("Hello World!".getBytes(Charsets.UTF_8));
+                } finally {
+                    httpExchange.close();
+                }
+            }
+        });
+        httpServer.start();
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        Client jersey = new JerseyClientBuilder(new MetricRegistry())
+                .using(executor, JSON_MAPPER)
+                .build("test-jersey-client");
+        String uri = "http://127.0.0.1:" + httpServer.getAddress().getPort() + "/test";
+
+        WebTarget target = jersey.target(uri);
+        target.register(new LoggingFilter());
+        String firstResponse = target.request()
+                .buildGet()
+                .invoke()
+                .readEntity(String.class);
+        assertThat(firstResponse).isEqualTo("Hello World!");
+
+        String secondResponse = jersey.target(uri)
+                .request()
+                .buildGet()
+                .invoke()
+                .readEntity(String.class);
+        assertThat(secondResponse).isEqualTo("Hello World!");
+
+        executor.shutdown();
+        jersey.close();
     }
 
     static class Person {

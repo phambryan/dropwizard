@@ -102,7 +102,7 @@ public class JerseyClientBuilder {
 
     /**
      * Sets the state of the given Jersey property.
-     *
+     * <p/>
      * <p/><b>WARNING:</b> The default connector ignores Jersey properties.
      * Use {@link JerseyClientConfiguration} instead.
      *
@@ -270,13 +270,14 @@ public class JerseyClientBuilder {
         }
 
         return build(name, environment.lifecycle()
-                .executorService("jersey-client-" + name + "-%d")
-                .minThreads(configuration.getMinThreads())
-                .maxThreads(configuration.getMaxThreads())
-                .workQueue(new ArrayBlockingQueue<Runnable>(configuration.getWorkQueueSize()))
-                .build(),
+                        .executorService("jersey-client-" + name + "-%d")
+                        .minThreads(configuration.getMinThreads())
+                        .maxThreads(configuration.getMaxThreads())
+                        .workQueue(new ArrayBlockingQueue<Runnable>(configuration.getWorkQueueSize()))
+                        .build(),
                 environment.getObjectMapper(),
-                environment.getValidator());
+                environment.getValidator()
+        );
     }
 
     private Client build(String name, ExecutorService threadPool,
@@ -313,10 +314,14 @@ public class JerseyClientBuilder {
 
         config.register(new DropwizardExecutorProvider(threadPool));
         if (connectorProvider == null) {
+            final ConfiguredCloseableHttpClient apacheHttpClient =
+                    apacheHttpClientBuilder.buildWithDefaultRequestConfiguration(name);
             connectorProvider = new ConnectorProvider() {
                 @Override
                 public Connector getConnector(Client client, Configuration runtimeConfig) {
-                    return new DropwizardApacheConnector(apacheHttpClientBuilder.build(name),
+                    return new DropwizardApacheConnector(
+                            apacheHttpClient.getClient(),
+                            apacheHttpClient.getDefaultRequestConfig(),
                             configuration.isChunkedEncodingEnabled());
                 }
             };

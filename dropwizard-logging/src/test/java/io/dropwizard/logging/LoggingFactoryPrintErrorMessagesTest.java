@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 
 import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assume.assumeTrue;
 
 public class LoggingFactoryPrintErrorMessagesTest {
 
@@ -75,7 +76,7 @@ public class LoggingFactoryPrintErrorMessagesTest {
     @Test
     public void testWhenFileAppenderDoesNotHaveWritePermissionToFolder_PrintsErrorMessageToConsole() throws Exception {
         File folderWithoutWritePermission = tempDir.newFolder("folder-without-write-permission");
-        folderWithoutWritePermission.setWritable(false);
+        assumeTrue(folderWithoutWritePermission.setWritable(false));
 
         configureLoggingFactoryWithFileAppender(folderWithoutWritePermission);
 
