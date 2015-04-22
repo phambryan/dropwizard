@@ -164,6 +164,14 @@ import java.util.regex.Pattern;
  *         </td>
  *     </tr>
  *     <tr>
+ *         <td>{@code registerDefaultExceptionMappers}</td>
+ *         <td>true</td>
+ *         <td>
+ *            Whether or not the default Jersey ExceptionMappers should be registered.
+ *            Set this to false if you want to register your own.
+ *         </td>
+ *     </tr>
+ *     <tr>
  *         <td>{@code shutdownGracePeriod}</td>
  *         <td>30 seconds</td>
  *         <td>
@@ -177,6 +185,13 @@ import java.util.regex.Pattern;
  *         <td>
  *             The set of allowed HTTP methods. Others will be rejected with a
  *             405 Method Not Allowed response.
+ *         </td>
+ *     </tr>
+ *     <tr>
+ *         <td>{@code rootPath}</td>
+ *         <td>/</td>
+ *         <td>
+ *           The URL pattern relative to {@code applicationContextPath} from which the JAX-RS resources will be served.
  *         </td>
  *     </tr>
  * </table>
@@ -233,7 +248,7 @@ public abstract class AbstractServerFactory implements ServerFactory {
     private Set<String> allowedMethods = AllowedMethodsFilter.DEFAULT_ALLOWED_METHODS;
 
     @NotEmpty
-    private String jerseyRootPath = "/*";
+    private String jerseyRootPath = "/";
 
     @JsonIgnore
     @ValidationMethod(message = "must have a smaller minThreads than maxThreads")
@@ -459,7 +474,14 @@ public abstract class AbstractServerFactory implements ServerFactory {
             handler.addFilter(holder, "/*", EnumSet.allOf(DispatcherType.class));
         }
         if (jerseyContainer != null) {
-            jersey.setUrlPattern(jerseyRootPath);
+            String urlPattern = jerseyRootPath;
+            if (!urlPattern.endsWith("*") && !urlPattern.endsWith("/")) {
+                urlPattern += "/";
+            }
+            if (!urlPattern.endsWith("*")) {
+                urlPattern += "*";
+            }
+            jersey.setUrlPattern(urlPattern);
             jersey.register(new JacksonMessageBodyProvider(objectMapper, validator));
             if (registerDefaultExceptionMappers == null || registerDefaultExceptionMappers) {
                 jersey.register(new LoggingExceptionMapper<Throwable>() {

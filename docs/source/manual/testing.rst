@@ -101,14 +101,17 @@ Next, write a test for serializing a ``Person`` instance to JSON:
         @Test
         public void serializesToJSON() throws Exception {
             final Person person = new Person("Luther Blissett", "lb@example.com");
-            assertThat(MAPPER.writeValueAsString(person))
-                    .isEqualTo(fixture("fixtures/person.json"));
+
+            final String expected = MAPPER.writeValueAsString(
+                    MAPPER.readValue(fixture("fixtures/person.json"), Person.class));
+
+            assertThat(MAPPER.writeValueAsString(person)).isEqualTo(expected);
         }
     }
 
 This test uses `AssertJ assertions`_ and JUnit_ to test that when a ``Person`` instance is serialized
-via Jackson it matches the JSON in the fixture file. (The comparison is done via a normalized JSON
-string representation, so whitespace doesn't affect the results.)
+via Jackson it matches the JSON in the fixture file. (The comparison is done on a normalized JSON
+string representation, so formatting doesn't affect the results.)
 
 .. _AssertJ assertions: http://assertj.org/assertj-core-conditions.html
 .. _JUnit: http://www.junit.org/
@@ -213,7 +216,7 @@ Note that the in-memory Jersey test container does not support all features, suc
 ``ResourceTestRule.Builder#setTestContainerFactory(TestContainerFactory)``.
 
 For example if you want to use the `Grizzly`_ HTTP server (which supports ``@Context`` injections) you need to add the
-dependency for the Jersey Test Framework providers to your Maven POM and set `GrizzlyTestContainerFactory`` as
+dependency for the Jersey Test Framework providers to your Maven POM and set ``GrizzlyWebTestContainerFactory`` as
 ``TestContainerFactory`` in your test classes.
 
 .. code-block:: xml
@@ -241,7 +244,7 @@ dependency for the Jersey Test Framework providers to your Maven POM and set `Gr
     public class ResourceTestWithGrizzly {
         @ClassRule
         public static final ResourceTestRule RULE = ResourceTestRule.builder()
-            .setTestContainerFactory(new GrizzlyTestContainerFactory())
+            .setTestContainerFactory(new GrizzlyWebTestContainerFactory())
             .addResource(new ExampleResource())
             .build();
 
