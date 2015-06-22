@@ -19,7 +19,7 @@ Authenticators implement the ``Authenticator<C, P extends Principal>`` interface
 
 .. code-block:: java
 
-    public class SimpleAuthenticator implements Authenticator<BasicCredentials, User> {
+    public class ExampleAuthenticator implements Authenticator<BasicCredentials, User> {
         @Override
         public Optional<User> authenticate(BasicCredentials credentials) throws AuthenticationException {
             if ("secret".equals(credentials.getPassword())) {
@@ -66,12 +66,31 @@ configuration file to look like this:
 
 This caches up to 10,000 principals with an LRU policy, evicting stale entries after 10 minutes.
 
+.. _man-auth-authorizer:
+
+Authorizer
+==========
+
+An authorizer is a strategy class which, given a principal and a role, decides if access is granted to the
+principal.
+
+The authorizer implements the ``Authorizer<P extends Principal>`` interface, which has a single method:
+
+.. code-block:: java
+
+    public class ExampleAuthorizer implements Authorizer<User> {
+        @Override
+        public boolean authorize(User user, String role) {
+            return user.getName().equals("good-guy") && role.equals("ADMIN");
+        }
+    }
+
 .. _man-auth-basic:
 
 Basic Authentication
 ====================
 
-The ``AuthDynamicFeature`` with the ``BasicCredentialAuthHandler`` and ``RolesAllowedDynamicFeature``
+The ``AuthDynamicFeature`` with the ``BasicCredentialAuthFilter`` and ``RolesAllowedDynamicFeature``
 enables HTTP Basic authentication and authorization; requires an authenticator which
 takes instances of ``BasicCredentials``:
 
@@ -80,43 +99,15 @@ takes instances of ``BasicCredentials``:
     @Override
     public void run(ExampleConfiguration configuration,
                     Environment environment) {
-
-        final Function<AuthFilter.Tuple, SecurityContext> securityContextFunction =
-            new Function<AuthFilter.Tuple, SecurityContext>() {
-                @Override
-                public SecurityContext apply(final AuthFilter.Tuple input) {
-                    return new SecurityContext() {
-                        @Override
-                        public Principal getUserPrincipal() {
-                            return input.getPrincipal();
-                        }
-
-                        @Override
-                        public boolean isUserInRole(String role) {
-                            return getUserPrincipal() != null
-                                    && validUser.equals(getUserPrincipal().getName())
-                                    && validRole.equals(role);
-                        }
-
-                        @Override
-                        public boolean isSecure() {
-                            return input.getContainerRequestContext().getSecurityContext().isSecure();
-                        }
-
-                        @Override
-                        public String getAuthenticationScheme() {
-                            return SecurityContext.BASIC_AUTH;
-                        }
-                    }
-                }
-            }
         environment.jersey().register(new AuthDynamicFeature(
-                new BasicCredentialAuthHandler.Builder<User, ExampleAuthenticator>()
+                new BasicCredentialAuthFilter.Builder<User, ExampleAuthenticator>()
                     .setAuthenticator(new ExampleAuthenticator())
+                    .setAuthorizer(new ExampleAuthorizer())
                     .setRealm("SUPER SECRET STUFF")
-                    .setSecurityContextFunction(securityContextFunction);
-                    .buildAuthHandler()));
+                    .buildAuthFilter()));
         environment.jersey().register(RolesAllowedDynamicFeature.class);
+        //If you want to use @Auth to inject a custom Principal type into your resource
+        environment.jersey().register(new AuthValueFactoryProvider.Binder(User.class));
     }
 
 .. _man-auth-oauth2:
@@ -124,67 +115,24 @@ takes instances of ``BasicCredentials``:
 OAuth2
 ======
 
-The ``AuthDynamicFeature`` with ``OAuthCredentialAuthHandler`` and ``RolesAllowedDynamicFeature``
-enables OAuth2 bearer-token authentication and authorization;
-requires an authenticator which takes instances of ``String``:
+The ``AuthDynamicFeature`` with ``OAuthCredentialAuthFilter`` and ``RolesAllowedDynamicFeature``
+enables OAuth2 bearer-token authentication and authorization; requires an authenticator which
+takes instances of ``String``:
 
 .. code-block:: java
 
     @Override
     public void run(ExampleConfiguration configuration,
                     Environment environment) {
-        final Authenticator<String, Principal> authenticator = new Authenticator<String, Principal>() {
-            @Override
-            public Optional<Principal> authenticate(String credentials) throws AuthenticationException {
-                if ("good-guy".equals(credentials)) {
-                    return Optional.<Principal>of(new PrincipalImpl("good-guy"));
-                }
-
-                if ("bad-guy".equals(credentials)) {
-                    throw new AuthenticationException("CRAP");
-                }
-
-                return Optional.absent();
-            }
-        };
-
-        final Function<AuthFilter.Tuple, SecurityContext> securityContextFunction =
-            new Function<AuthFilter.Tuple, SecurityContext>() {
-                @Override
-                public SecurityContext apply(final AuthFilter.Tuple input) {
-                    return new SecurityContext() {
-                        @Override
-                        public Principal getUserPrincipal() {
-                            return input.getPrincipal();
-                        }
-
-                        @Override
-                        public boolean isUserInRole(String role) {
-                            return getUserPrincipal() != null
-                                    && validUser.equals(getUserPrincipal().getName())
-                                    && validRole.equals(role);
-                        }
-
-                        @Override
-                        public boolean isSecure() {
-                            return input.getContainerRequestContext().getSecurityContext().isSecure();
-                        }
-
-                        @Override
-                        public String getAuthenticationScheme() {
-                            return SecurityContext.BASIC_AUTH;
-                        }
-                    }
-                }
-            }
-
         environment.jersey().register(new AuthDynamicFeature(
-            new OAuthCredentialAuthHandler.Builder<>()
-                .setAuthenticator(authenticator)
-                .setSecurityContextFunction(securityContextFunction);
-                .setPrefix("Custom")
-                .buildAuthHandler()));
+            new OAuthCredentialAuthFilter.Builder<User, ExampleOAuthAuthenticator>()
+                .setAuthenticator(new ExampleOAuthAuthenticator())
+                .setAuthorizer(new ExampleAuthorizer())
+                .setPrefix("SUPER SECRET STUFF")
+                .buildAuthFilter()));
         environment.jersey().register(RolesAllowedDynamicFeature.class);
+        //If you want to use @Auth to inject a custom Principal type into your resource
+        environment.jersey().register(new AuthValueFactoryProvider.Binder(User.class));
     }
 
 .. _man-auth-chained:
@@ -192,84 +140,30 @@ requires an authenticator which takes instances of ``String``:
 Chained Factories
 =================
 
-The ``ChainedAuthHandler`` enables usage of various authentication factories at the same time.
+The ``ChainedAuthFilter`` enables usage of various authentication factories at the same time.
 
 .. code-block:: java
 
     @Override
     public void run(ExampleConfiguration configuration,
                     Environment environment) {
-        final Authenticator<BasicCredentials, Principal> basicAuthenticator = new Authenticator<BasicCredentials, Principal>() {
-            @Override
-            public Optional<Principal> authenticate(BasicCredentials credentials) throws AuthenticationException {
-                if ("good-guy".equals(credentials.getUsername()) &&
-                        "secret".equals(credentials.getPassword())) {
-                    return Optional.<Principal>of(new PrincipalImpl("good-guy"));
-                }
-                if ("bad-guy".equals(credentials.getUsername())) {
-                    throw new AuthenticationException("CRAP");
-                }
-                return Optional.absent();
-            }
-        };
+        AuthFilter basicCredentialAuthFilter = new BasicCredentialAuthFilter.Builder<>()
+                .setAuthenticator(new ExampleBasicAuthenticator())
+                .setAuthorizer(new ExampleAuthorizer())
+                .setPrefix("Basic")
+                .buildAuthFilter();
 
-        final Authenticator<String, Principal> oauthAuthenticator = new Authenticator<String, Principal>() {
-            @Override
-            public Optional<Principal> authenticate(String credentials) throws AuthenticationException {
-                if ("A12B3C4D".equals(credentials)) {
-                    return Optional.<Principal>of(new PrincipalImpl("good-guy"));
-                }
-                if ("bad-guy".equals(credentials)) {
-                    throw new AuthenticationException("CRAP");
-                }
-                return Optional.absent();
-            }
-        };
-
-        final Function<AuthFilter.Tuple, SecurityContext> securityContextFunction =
-            new Function<AuthFilter.Tuple, SecurityContext>() {
-                @Override
-                public SecurityContext apply(final AuthFilter.Tuple input) {
-                    return new SecurityContext() {
-                        @Override
-                        public Principal getUserPrincipal() {
-                            return input.getPrincipal();
-                        }
-
-                        @Override
-                        public boolean isUserInRole(String role) {
-                            return getUserPrincipal() != null
-                                    && validUser.equals(getUserPrincipal().getName())
-                                    && validRole.equals(role);
-                        }
-
-                        @Override
-                        public boolean isSecure() {
-                            return input.getContainerRequestContext().getSecurityContext().isSecure();
-                        }
-
-                        @Override
-                        public String getAuthenticationScheme() {
-                            return SecurityContext.BASIC_AUTH;
-                        }
-                    }
-                }
-            }
-
-        AuthHandler basicCredentialAuthHandler = new BasicCredentialAuthHandler.Builder()
-                .setSecurityContextFunction(securityContextFunction);
-                .setAuthenticator(basicAuthenticator)
-                .buildAuthHandler();
-
-        AuthHandler oauthCredentialAuthHandler = new OAuthCredentialAuthHandler.Builder()
-                .setSecurityContextFunction(securityContextFunction);
-                .setAuthenticator(oauthAuthenticator)
+        AuthFilter oauthCredentialAuthFilter = new OAuthCredentialAuthFilter.Builder<>()
+                .setAuthenticator(new ExampleOAuthAuthenticator())
+                .setAuthorizer(new ExampleAuthorizer())
                 .setPrefix("Bearer")
-                .buildAuthHandler();
+                .buildAuthFilter();
 
-        List handlers = Lists.newArrayList(basicCredentialAuthHandler, oauthCredentialAuthHandler);
-        environment.jersey().register(new AuthDynamicFeature(new ChainedAuthHandler(handlers)));
+        List<AuthFilter> filters = Lists.newArrayList(basicCredentialAuthFilter, oauthCredentialAuthFilter);
+        environment.jersey().register(new AuthDynamicFeature(new ChainedAuthFilter(handlers)));
         environment.jersey().register(RolesAllowedDynamicFeature.class);
+        //If you want to use @Auth to inject a custom Principal type into your resource
+        environment.jersey().register(new AuthValueFactoryProvider.Binder(User.class));
     }
 
 For this to work properly, all chained factories must produce the same type of principal, here ``User``.
@@ -280,7 +174,7 @@ For this to work properly, all chained factories must produce the same type of p
 Protecting Resources
 ====================
 
-To protect a resource, simply include the ``@RolesAllowed`` annotation on your resource method.
+To protect a resource, simply include the ``@RolesAllowed`` annotation with an appropriate role on your resource method.
 If you need access to the Principal, you need to add a parameter to your method ``@Context SecurityContext context``
 
 .. code-block:: java
@@ -292,9 +186,23 @@ If you need access to the Principal, you need to add a parameter to your method 
         return dao.findPlanForUser(user);
     }
 
+or you can add register the following with jersey
+
+.. code-block:: java
+
+    environment.jersey().register(new AuthValueFactoryProvider.Binder(User.class));
+
+    @RolesAllowed("ADMIN")
+    @GET
+    public SecretPlan getSecretPlan(@Auth User user) {
+        return dao.findPlanForUser(user);
+    }
+
+
 If there are no provided credentials for the request, or if the credentials are invalid, the
 provider will return a scheme-appropriate ``401 Unauthorized`` response without calling your
 resource method.
 
 If you have a resource which is optionally protected (e.g., you want to display a logged-in user's
-name but not require login), set the ``required`` attribute of the annotation to ``false`` on the ``AuthHandler``:
+name but not require login), you need to implement a custom filter which injects a security context
+containing the principal if it exists, without performing authentication.

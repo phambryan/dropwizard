@@ -248,9 +248,17 @@ import java.util.concurrent.TimeUnit;
  *             To avoid excess validation, only run validation once every interval.
  *         </td>
  *     </tr>
+ *     <tr>
+ *         <td>{@code validatorClassName}</td>
+ *         <td>(none)</td>
+ *         <td>
+ *             Name of a class of a custom {@link org.apache.tomcat.jdbc.pool.Validator}
+ *             implementation, which will be used for validating connections.
+ *         </td>
+ *     </tr>
  * </table>
  */
-public class DataSourceFactory {
+public class DataSourceFactory implements PooledDataSourceFactory {
     @SuppressWarnings("UnusedDeclaration")
     public enum TransactionIsolation {
         NONE(Connection.TRANSACTION_NONE),
@@ -354,7 +362,10 @@ public class DataSourceFactory {
     @MinDuration(1)
     private Duration validationInterval = Duration.seconds(30);
 
+    private Optional<String> validatorClassName = Optional.absent();
+
     @JsonProperty
+    @Override
     public boolean isAutoCommentsEnabled() {
         return autoCommentsEnabled;
     }
@@ -365,6 +376,7 @@ public class DataSourceFactory {
     }
 
     @JsonProperty
+    @Override
     public String getDriverClass() {
         return driverClass;
     }
@@ -405,6 +417,7 @@ public class DataSourceFactory {
     }
 
     @JsonProperty
+    @Override
     public Map<String, String> getProperties() {
         return properties;
     }
@@ -426,6 +439,11 @@ public class DataSourceFactory {
 
     @JsonProperty
     public String getValidationQuery() {
+        return validationQuery;
+    }
+
+    @Override
+    public String getHealthCheckValidationQuery() {
         return validationQuery;
     }
 
@@ -690,10 +708,33 @@ public class DataSourceFactory {
     }
 
     @JsonProperty
+    public Optional<String> getValidatorClassName() {
+        return validatorClassName;
+    }
+
+    @JsonProperty
+    public void setValidatorClassName(Optional<String> validatorClassName) {
+        this.validatorClassName = validatorClassName;
+    }
+
+    @Override
+    public Optional<Duration> getHealthCheckValidationTimeout() {
+        return Optional.fromNullable(validationQueryTimeout);
+    }
+
+    @JsonProperty
     public void setValidationQueryTimeout(Duration validationQueryTimeout) {
         this.validationQueryTimeout = validationQueryTimeout;
     }
 
+    @Override
+    public void asSingleConnectionPool() {
+        minSize = 1;
+        maxSize = 1;
+        initialSize = 1;
+    }
+
+    @Override
     public ManagedDataSource build(MetricRegistry metricRegistry, String name) {
         final Properties properties = new Properties();
         for (Map.Entry<String, String> property : this.properties.entrySet()) {
@@ -739,6 +780,9 @@ public class DataSourceFactory {
 
         if (getValidationQueryTimeout().isPresent()) {
             poolConfig.setValidationQueryTimeout((int) validationQueryTimeout.toSeconds());
+        }
+        if (validatorClassName.isPresent()) {
+            poolConfig.setValidatorClassName(validatorClassName.get());
         }
 
         return new ManagedPooledDataSource(poolConfig, metricRegistry);

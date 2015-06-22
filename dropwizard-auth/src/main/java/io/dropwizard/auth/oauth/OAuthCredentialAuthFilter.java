@@ -13,16 +13,18 @@ import javax.ws.rs.Priorities;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.SecurityContext;
 import java.io.IOException;
 import java.security.Principal;
 
 @Priority(Priorities.AUTHENTICATION)
 public class OAuthCredentialAuthFilter<P extends Principal> extends AuthFilter<String, P> {
-    final private static Logger LOGGER = LoggerFactory.getLogger(OAuthCredentialAuthFilter.class);
-    private OAuthCredentialAuthFilter() {}
+    private static final Logger LOGGER = LoggerFactory.getLogger(OAuthCredentialAuthFilter.class);
+    private OAuthCredentialAuthFilter() {
+    }
 
     @Override
-    public void filter(ContainerRequestContext requestContext) throws IOException {
+    public void filter(final ContainerRequestContext requestContext) throws IOException {
         final String header = requestContext.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
         if (header != null) {
             try {
@@ -31,11 +33,29 @@ public class OAuthCredentialAuthFilter<P extends Principal> extends AuthFilter<S
                     final String method = header.substring(0, space);
                     if (prefix.equalsIgnoreCase(method)) {
                         final String credentials = header.substring(space + 1);
-                        final Optional<P> result = authenticator.authenticate(credentials);
-                        if (result.isPresent()) {
-                            final Principal principal = result.get();
-                            requestContext.setSecurityContext(
-                                    getSecurityContextFunction().apply(new Tuple(requestContext, principal)));
+                        final Optional<P> principal = authenticator.authenticate(credentials);
+                        if (principal.isPresent()) {
+                            requestContext.setSecurityContext(new SecurityContext() {
+                                @Override
+                                public Principal getUserPrincipal() {
+                                    return principal.get();
+                                }
+
+                                @Override
+                                public boolean isUserInRole(String role) {
+                                    return authorizer.authorize(principal.get(), role);
+                                }
+
+                                @Override
+                                public boolean isSecure() {
+                                    return requestContext.getSecurityContext().isSecure();
+                                }
+
+                                @Override
+                                public String getAuthenticationScheme() {
+                                    return SecurityContext.BASIC_AUTH;
+                                }
+                            });
                             return;
                         }
                     }
@@ -50,19 +70,19 @@ public class OAuthCredentialAuthFilter<P extends Principal> extends AuthFilter<S
     }
 
     public static class Builder<APrincipal extends Principal, AAuthenticator extends Authenticator<String, APrincipal>>
-            extends AuthFilter.AuthHandlerBuilder<String, APrincipal, OAuthCredentialAuthFilter<APrincipal>, AAuthenticator> {
+            extends AuthFilterBuilder<String, APrincipal, OAuthCredentialAuthFilter<APrincipal>, AAuthenticator> {
         @Override
-        public OAuthCredentialAuthFilter<APrincipal> buildAuthHandler() {
-            if(realm == null || authenticator == null || prefix == null || securityContextFunction == null) {
+        public OAuthCredentialAuthFilter<APrincipal> buildAuthFilter() {
+            if (realm == null || authenticator == null || prefix == null || authorizer == null) {
                 throw new RuntimeException("Required auth filter parameters not set");
             }
 
-            OAuthCredentialAuthFilter<APrincipal> oauthCredentialAuthHandler = new OAuthCredentialAuthFilter<>();
-            oauthCredentialAuthHandler.setRealm(realm);
-            oauthCredentialAuthHandler.setAuthenticator(authenticator);
-            oauthCredentialAuthHandler.setPrefix(prefix);
-            oauthCredentialAuthHandler.setSecurityContextFunction(securityContextFunction);
-            return oauthCredentialAuthHandler;
+            OAuthCredentialAuthFilter<APrincipal> oauthCredentialAuthFilter = new OAuthCredentialAuthFilter<>();
+            oauthCredentialAuthFilter.setRealm(realm);
+            oauthCredentialAuthFilter.setAuthenticator(authenticator);
+            oauthCredentialAuthFilter.setPrefix(prefix);
+            oauthCredentialAuthFilter.setAuthorizer(authorizer);
+            return oauthCredentialAuthFilter;
         }
     }
 }

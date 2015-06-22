@@ -29,10 +29,8 @@ import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import io.dropwizard.validation.valuehandling.OptionalValidatedValueUnwrapper;
-import org.hibernate.validator.HibernateValidator;
+import io.dropwizard.jersey.validation.Validators;
 
-import javax.validation.Validation;
 import javax.validation.ValidatorFactory;
 
 /**
@@ -43,16 +41,18 @@ import javax.validation.ValidatorFactory;
  */
 public class Bootstrap<T extends Configuration> {
     private final Application<T> application;
-    private final ObjectMapper objectMapper;
     private final List<Bundle> bundles;
     private final List<ConfiguredBundle<? super T>> configuredBundles;
     private final List<Command> commands;
-    private final MetricRegistry metricRegistry;
 
+    private ObjectMapper objectMapper;
+    private MetricRegistry metricRegistry;
     private ConfigurationSourceProvider configurationSourceProvider;
     private ClassLoader classLoader;
     private ConfigurationFactoryFactory<T> configurationFactoryFactory;
     private ValidatorFactory validatorFactory;
+
+    private boolean metricsAreRegistered;
 
     /**
      * Creates a new {@link Bootstrap} for the given application.
@@ -65,13 +65,21 @@ public class Bootstrap<T extends Configuration> {
         this.bundles = Lists.newArrayList();
         this.configuredBundles = Lists.newArrayList();
         this.commands = Lists.newArrayList();
+        this.validatorFactory = Validators.newValidatorFactory();
         this.metricRegistry = new MetricRegistry();
-        this.validatorFactory = Validation
-                .byProvider(HibernateValidator.class)
-                .configure()
-                .addValidatedValueHandler(new OptionalValidatedValueUnwrapper())
-                .buildValidatorFactory();
+        this.configurationSourceProvider = new FileConfigurationSourceProvider();
+        this.classLoader = Thread.currentThread().getContextClassLoader();
+        this.configurationFactoryFactory = new DefaultConfigurationFactoryFactory<T>();
+    }
 
+    /**
+     * Registers the JVM metrics to the metric registry and start to report
+     * the registry metrics via JMX.
+     */
+    public void registerMetrics() {
+        if (metricsAreRegistered) {
+            return;
+        }
         getMetricRegistry().register("jvm.attribute", new JvmAttributeGaugeSet());
         getMetricRegistry().register("jvm.buffers", new BufferPoolMetricSet(ManagementFactory
                                                                                .getPlatformMBeanServer()));
@@ -82,10 +90,7 @@ public class Bootstrap<T extends Configuration> {
         getMetricRegistry().register("jvm.threads", new ThreadStatesGaugeSet());
 
         JmxReporter.forRegistry(metricRegistry).build().start();
-
-        this.configurationSourceProvider = new FileConfigurationSourceProvider();
-        this.classLoader = Thread.currentThread().getContextClassLoader();
-        this.configurationFactoryFactory = new DefaultConfigurationFactoryFactory<T>();
+        metricsAreRegistered = true;
     }
 
     /**
@@ -169,6 +174,17 @@ public class Bootstrap<T extends Configuration> {
     }
 
     /**
+     * Sets the given {@link ObjectMapper} to the bootstrap.
+     * <p<b>WARNING:</b> The mapper should be created by {@link Jackson#newMinimalObjectMapper()}
+     * or {@link Jackson#newObjectMapper()}, otherwise it will not work with Dropwizard.</p>
+     *
+     * @param objectMapper an {@link ObjectMapper}
+     */
+    public void setObjectMapper(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
+    /**
      * Runs the bootstrap's bundles with the given configuration and environment.
      *
      * @param configuration the parsed configuration
@@ -192,10 +208,19 @@ public class Bootstrap<T extends Configuration> {
     }
 
     /**
-     * Returns the application's metrics.
+     * Returns the application metrics.
      */
     public MetricRegistry getMetricRegistry() {
         return metricRegistry;
+    }
+
+    /**
+     * Sets a custom registry for the application metrics.
+     *
+     * @param metricRegistry a custom metric registry
+     */
+    public void setMetricRegistry(MetricRegistry metricRegistry) {
+        this.metricRegistry = metricRegistry;
     }
 
     /**
@@ -215,5 +240,5 @@ public class Bootstrap<T extends Configuration> {
 
     public void setConfigurationFactoryFactory(ConfigurationFactoryFactory<T> configurationFactoryFactory) {
         this.configurationFactoryFactory = configurationFactoryFactory;
-    }   
+    }
 }

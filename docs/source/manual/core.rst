@@ -51,7 +51,7 @@ Our applications tend to look like this:
 .. _man-core-application:
 
 Application
-============
+===========
 
 The main entry point into a Dropwizard application is, unsurprisingly, the ``Application`` class. Each
 ``Application`` has a **name**, which is mostly used to render the command-line interface. In the
@@ -156,7 +156,7 @@ Your main ``Configuration`` subclass can then include this as a member field:
         }
     }
 
-And your ``Application`` subclass can then use your factory to directly construct a client for the 
+And your ``Application`` subclass can then use your factory to directly construct a client for the
 message queue:
 
 .. code-block:: java
@@ -174,8 +174,8 @@ Then, in your application's YAML file, you can use a nested ``messageQueue`` fie
       host: mq.example.com
       port: 5673
 
-The ``@NotNull``, ``@NotEmpty``, ``@Min``, ``@Max``, and ``@Valid`` annotations are part of Dropwizard's
-:ref:`man-core-representations-validation` functionality. If your YAML configuration file's
+The ``@NotNull``, ``@NotEmpty``, ``@Min``, ``@Max``, and ``@Valid`` annotations are part of
+:ref:`man-validation` functionality. If your YAML configuration file's
 ``messageQueue.host`` field was missing (or was a blank string), Dropwizard would refuse to start
 and would output an error message describing the issues.
 
@@ -192,7 +192,7 @@ Dropwizard then calls your ``Application`` subclass to initialize your applicati
 
     ``java -Ddw.logging.level=DEBUG server my-config.json``
 
-    This will work even if the configuration setting in question does not exist in your config file, in 
+    This will work even if the configuration setting in question does not exist in your config file, in
     which case it will get added.
 
     You can override configuration settings in arrays of objects like this:
@@ -209,11 +209,11 @@ Dropwizard then calls your ``Application`` subclass to initialize your applicati
     ``java -Ddw.myapp.myserver.hosts=server1,server2,server3 server my-config.json``
 
     If you need to use the ',' character in one of the values, you can escape it by using '\,' instead.
-    
-    The array override facility only handles configuration elements that are arrays of simple strings. 
-    Also, the setting in question must already exist in your configuration file as an array; 
-    this mechanism will not work if the configuration key being overridden does not exist in your configuration 
-    file. If it does not exist or is not an array setting, it will get added as a simple string setting, including 
+
+    The array override facility only handles configuration elements that are arrays of simple strings.
+    Also, the setting in question must already exist in your configuration file as an array;
+    this mechanism will not work if the configuration key being overridden does not exist in your configuration
+    file. If it does not exist or is not an array setting, it will get added as a simple string setting, including
     the ',' characters as part of the string.
 
 .. _man-core-environment-variables:
@@ -233,7 +233,7 @@ value of environment variables using a ``SubstitutingSourceProvider`` and ``Envi
             // Enable variable substitution with environment variables
             bootstrap.setConfigurationSourceProvider(
                     new SubstitutingSourceProvider(bootstrap.getConfigurationSourceProvider(),
-                                                       new EnvironmentVariableSubstitutor()
+                                                       new EnvironmentVariableSubstitutor(false)
                     )
             );
 
@@ -580,7 +580,7 @@ record runtime information about your tasks. Here's a basic task class:
         private final Database database;
 
         public TruncateDatabaseTask(Database database) {
-            super('truncate');
+            super("truncate");
             this.database = database;
         }
 
@@ -761,7 +761,7 @@ Finally, Dropwizard can also log statements to syslog.
           # The syslog facility to which statements will be sent.
           facility: local0
 
-You can combine any number of different ``appenders``, including multiple instances of the same 
+You can combine any number of different ``appenders``, including multiple instances of the same
 appender with different configurations:
 
 .. code-block:: yaml
@@ -959,6 +959,9 @@ Metrics
 Every resource method can be annotated with ``@Timed``, ``@Metered``, and ``@ExceptionMetered``.
 Dropwizard augments Jersey to automatically record runtime information about your resource methods.
 
+* ``@Timed`` measures the duration of requests to a resource
+* ``@Metered`` measures the rate at which the resource is accessed
+* ``@ExceptionMetered`` measures how often exceptions occur processing the resource
 
 .. _man-core-resources-parameters:
 
@@ -1011,7 +1014,7 @@ this:
 Jersey maps the request entity to any single, unbound parameter. In this case, because the resource
 is annotated with ``@Consumes(MediaType.APPLICATION_JSON)``, it uses the Dropwizard-provided Jackson
 support which, in addition to parsing the JSON and mapping it to an instance of ``Notification``,
-also runs that instance through Dropwizard's :ref:`man-core-representations-validation`.
+also runs that instance through Dropwizard's :ref:`man-validation-validations-constraining-entities`.
 
 If the deserialized ``Notification`` isn't valid, Dropwizard returns a ``422 Unprocessable Entity``
 response to the client.
@@ -1067,7 +1070,7 @@ If at all possible, prefer throwing ``Exception`` instances to returning
 If you throw a subclass of ``WebApplicationException`` jersey will map that to a defined response.
 
 If you want more control, you can also declare JerseyProviders in your Environment to map Exceptions
-to certain responses by calling ``JerseyEnvironment#register(Object)`` with an implementation of 
+to certain responses by calling ``JerseyEnvironment#register(Object)`` with an implementation of
 javax.ws.rs.ext.ExceptionMapper.
 e.g. Your resource throws an InvalidArgumentException, but the response would be 400, bad request.
 
@@ -1254,69 +1257,6 @@ This gets converted into this JSON:
         "first_name": "Coda"
     }
 
-.. _man-core-representations-validation:
-
-Validation
-----------
-
-Like :ref:`man-core-configuration`, you can add validation annotations to fields of your
-representation classes and validate them. If we're accepting client-provided ``Person`` objects, we
-probably want to ensure that the ``name`` field of the object isn't ``null`` or blank. We can do
-this as follows:
-
-.. code-block:: java
-
-    public class Person {
-
-        @NotEmpty // ensure that name isn't null or blank
-        private final String name;
-
-        @JsonCreator
-        public Person(@JsonProperty("name") String name) {
-            this.name = name;
-        }
-
-        @JsonProperty("name")
-        public String getName() {
-            return name;
-        }
-    }
-
-Then, in our resource class, we can add the ``@Valid`` annotation to the ``Person`` annotation:
-
-.. code-block:: java
-
-    @PUT
-    public Response replace(@Valid Person person) {
-        // ...
-    }
-
-If the ``name`` field is missing, Dropwizard will return a ``text/plain``
-``422 Unprocessable Entity`` response detailing the validation errors::
-
-    * name may not be empty
-
-.. _man-core-resources-validation-advanced:
-
-Advanced
-********
-
-More complex validations (for example, cross-field comparisons) are often hard to do using
-declarative annotations. As an emergency maneuver, add the ``@ValidationMethod`` to any
-``boolean``-returning method which begins with ``is``:
-
-.. code-block:: java
-
-    @ValidationMethod(message="may not be Coda")
-    public boolean isNotCoda() {
-        return !("Coda".equals(name));
-    }
-
-.. note::
-
-    Due to the rather daft JavaBeans conventions, the method must begin with ``is`` (e.g.,
-    ``#isValidPortRange()``. This is a limitation of Hibernate Validator, not Dropwizard.
-
 .. _man-core-representations-streaming:
 
 Streaming Output
@@ -1418,14 +1358,14 @@ this example demonstrates a servlet filter analogous to the previous example:
 .. code-block:: java
 
     public class DateNotSpecifiedServletFilter implements javax.servlet.Filter {
-        // Other methods in interface ommited for brevity
+        // Other methods in interface omitted for brevity
 
         @Override
         public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
             if (request instanceof HttpServletRequest) {
                 String dateHeader = ((HttpServletRequest) request).getHeader(HttpHeaders.DATE);
 
-                if (dateHeader == null) {
+                if (dateHeader != null) {
                     chain.doFilter(request, response); // This signals that the request should pass this filter
                 } else {
                     HttpServletResponse httpResponse = (HttpServletResponse) response;
@@ -1468,5 +1408,3 @@ enable the following functionality:
     * Resources that return Guava Optional are unboxed. Present returns underlying type, and non present 404s
     * Resource methods that are annotated with ``@CacheControl`` are delegated to a special dispatcher that decorates on the cache control headers
     * Enables using Jackson to parse request entities into objects and generate response entities from objects, all while performing validation
-
-

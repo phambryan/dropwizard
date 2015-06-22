@@ -13,17 +13,20 @@ import javax.ws.rs.Priorities;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.SecurityContext;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 
 @Priority(Priorities.AUTHENTICATION)
 public class BasicCredentialAuthFilter<P extends Principal> extends AuthFilter<BasicCredentials, P> {
-    final private static Logger LOGGER = LoggerFactory.getLogger(BasicCredentialAuthFilter.class);
-    private BasicCredentialAuthFilter() {}
+    private static final Logger LOGGER = LoggerFactory.getLogger(BasicCredentialAuthFilter.class);
+
+    private BasicCredentialAuthFilter() {
+    }
 
     @Override
-    public void filter(ContainerRequestContext requestContext) throws IOException {
+    public void filter(final ContainerRequestContext requestContext) throws IOException {
         final String header = requestContext.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
         try {
             if (header != null) {
@@ -40,11 +43,29 @@ public class BasicCredentialAuthFilter<P extends Principal> extends AuthFilter<B
                             final String password = decoded.substring(i + 1);
                             final BasicCredentials credentials = new BasicCredentials(username, password);
                             try {
-                                final Optional<P> result = authenticator.authenticate(credentials);
-                                if (result.isPresent()) {
-                                    Principal principal = result.get();
-                                    requestContext.setSecurityContext(
-                                            getSecurityContextFunction().apply(new Tuple(requestContext, principal)));
+                                final Optional<P> principal = authenticator.authenticate(credentials);
+                                if (principal.isPresent()) {
+                                    requestContext.setSecurityContext(new SecurityContext() {
+                                        @Override
+                                        public Principal getUserPrincipal() {
+                                            return principal.get();
+                                        }
+
+                                        @Override
+                                        public boolean isUserInRole(String role) {
+                                            return authorizer.authorize(principal.get(), role);
+                                        }
+
+                                        @Override
+                                        public boolean isSecure() {
+                                            return requestContext.getSecurityContext().isSecure();
+                                        }
+
+                                        @Override
+                                        public String getAuthenticationScheme() {
+                                            return SecurityContext.BASIC_AUTH;
+                                        }
+                                    });
                                     return;
                                 }
                             } catch (AuthenticationException e) {
@@ -55,8 +76,7 @@ public class BasicCredentialAuthFilter<P extends Principal> extends AuthFilter<B
                     }
                 }
             }
-        }
-        catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
             LOGGER.warn("Error decoding credentials", e);
         }
 
@@ -65,20 +85,20 @@ public class BasicCredentialAuthFilter<P extends Principal> extends AuthFilter<B
 
 
     public static class Builder<APrincipal extends Principal, AAuthenticator extends Authenticator<BasicCredentials, APrincipal>>
-            extends AuthFilter.AuthHandlerBuilder<BasicCredentials, APrincipal, BasicCredentialAuthFilter<APrincipal>, AAuthenticator> {
+            extends AuthFilterBuilder<BasicCredentials, APrincipal, BasicCredentialAuthFilter<APrincipal>, AAuthenticator> {
 
         @Override
-        public BasicCredentialAuthFilter<APrincipal> buildAuthHandler() {
-            if(realm == null || authenticator == null || prefix == null || securityContextFunction == null) {
+        public BasicCredentialAuthFilter<APrincipal> buildAuthFilter() {
+            if (realm == null || authenticator == null || prefix == null || authorizer == null) {
                 throw new RuntimeException("Required auth filter parameters not set");
             }
 
-            BasicCredentialAuthFilter<APrincipal> basicCredentialAuthHandler = new BasicCredentialAuthFilter<>();
-            basicCredentialAuthHandler.setRealm(realm);
-            basicCredentialAuthHandler.setAuthenticator(authenticator);
-            basicCredentialAuthHandler.setPrefix(prefix);
-            basicCredentialAuthHandler.setSecurityContextFunction(securityContextFunction);
-            return basicCredentialAuthHandler;
+            BasicCredentialAuthFilter<APrincipal> basicCredentialAuthFilter = new BasicCredentialAuthFilter<>();
+            basicCredentialAuthFilter.setRealm(realm);
+            basicCredentialAuthFilter.setAuthenticator(authenticator);
+            basicCredentialAuthFilter.setPrefix(prefix);
+            basicCredentialAuthFilter.setAuthorizer(authorizer);
+            return basicCredentialAuthFilter;
         }
     }
 }

@@ -9,20 +9,21 @@ import com.google.common.collect.Sets;
 import io.dropwizard.jackson.Jackson;
 import io.dropwizard.jersey.DropwizardResourceConfig;
 import io.dropwizard.jersey.jackson.JacksonMessageBodyProvider;
-import io.dropwizard.logging.LoggingFactory;
+import io.dropwizard.jersey.validation.Validators;
+import io.dropwizard.jersey.validation.ConstraintViolationExceptionMapper;
+import io.dropwizard.logging.BootstrapLogging;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.servlet.ServletProperties;
 import org.glassfish.jersey.test.DeploymentContext;
 import org.glassfish.jersey.test.JerseyTest;
 import org.glassfish.jersey.test.ServletDeploymentContext;
 import org.glassfish.jersey.test.inmemory.InMemoryTestContainerFactory;
-import org.glassfish.jersey.test.spi.TestContainerException;
 import org.glassfish.jersey.test.spi.TestContainerFactory;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
+
 import javax.servlet.ServletConfig;
-import javax.validation.Validation;
 import javax.validation.Validator;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.Context;
@@ -35,7 +36,7 @@ import java.util.Set;
 public class ResourceTestRule implements TestRule {
 
     static {
-        LoggingFactory.bootstrap();
+        BootstrapLogging.bootstrap();
     }
 
     public static class Builder {
@@ -44,7 +45,7 @@ public class ResourceTestRule implements TestRule {
         private final Set<Class<?>> providers = Sets.newHashSet();
         private final Map<String, Object> properties = Maps.newHashMap();
         private ObjectMapper mapper = Jackson.newObjectMapper();
-        private Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
+        private Validator validator = Validators.newValidator();
         private TestContainerFactory testContainerFactory = new InMemoryTestContainerFactory();
 
         public Builder setMapper(ObjectMapper mapper) {
@@ -151,6 +152,7 @@ public class ResourceTestRule implements TestRule {
         }
 
         private void configure(final ResourceTestRule resourceTestRule) {
+            register(new ConstraintViolationExceptionMapper());
             for (Class<?> provider : resourceTestRule.providers) {
                 register(provider);
             }
@@ -174,18 +176,17 @@ public class ResourceTestRule implements TestRule {
                 try {
                     test = new JerseyTest() {
                         @Override
-                        protected TestContainerFactory getTestContainerFactory() throws TestContainerException {
+                        protected TestContainerFactory getTestContainerFactory() {
                             return testContainerFactory;
                         }
 
                         @Override
                         protected DeploymentContext configureDeployment() {
                             final ResourceTestResourceConfig resourceConfig = new ResourceTestResourceConfig(ruleId, rule);
-                            ServletDeploymentContext deploymentContext = ServletDeploymentContext.builder(resourceConfig)
+                            return ServletDeploymentContext.builder(resourceConfig)
                                     .initParam(ServletProperties.JAXRS_APPLICATION_CLASS, ResourceTestResourceConfig.class.getName())
                                     .initParam(ResourceTestResourceConfig.RULE_ID, ruleId)
                                     .build();
-                            return deploymentContext;
                         }
 
                         @Override

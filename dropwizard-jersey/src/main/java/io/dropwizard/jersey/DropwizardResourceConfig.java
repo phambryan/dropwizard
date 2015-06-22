@@ -9,7 +9,9 @@ import com.google.common.collect.Sets;
 import io.dropwizard.jersey.caching.CacheControlledResponseFeature;
 import io.dropwizard.jersey.guava.OptionalMessageBodyWriter;
 import io.dropwizard.jersey.guava.OptionalParamFeature;
+import io.dropwizard.jersey.params.NonEmptyStringParamFeature;
 import io.dropwizard.jersey.sessions.SessionFactoryProvider;
+import io.dropwizard.jersey.validation.HibernateValidationFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.server.model.Resource;
@@ -24,10 +26,10 @@ import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.Path;
 import javax.ws.rs.ext.Provider;
-import java.lang.annotation.Annotation;
 import java.io.Serializable;
-import java.util.Comparator;
+import java.lang.annotation.Annotation;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
@@ -45,7 +47,6 @@ public class DropwizardResourceConfig extends ResourceConfig {
         this(true, null);
     }
 
-    @SuppressWarnings("unchecked")
     public DropwizardResourceConfig(boolean testOnly, MetricRegistry metricRegistry) {
         super();
 
@@ -58,11 +59,14 @@ public class DropwizardResourceConfig extends ResourceConfig {
             // create a subclass to pin it to Throwable
             register(new ComponentLoggingListener(this));
         }
+
         register(new InstrumentedResourceMethodApplicationListener(metricRegistry));
         register(CacheControlledResponseFeature.class);
         register(OptionalMessageBodyWriter.class);
         register(OptionalParamFeature.class);
+        register(NonEmptyStringParamFeature.class);
         register(new SessionFactoryProvider.Binder());
+        register(HibernateValidationFeature.class);
         register(ValidationFeature.class);
     }
 
@@ -184,6 +188,9 @@ public class DropwizardResourceConfig extends ResourceConfig {
         }
 
         private String normalizePath(String basePath, String path) {
+            if (path == null) {
+                return basePath;
+            }
             if (basePath.endsWith("/")) {
                 return path.startsWith("/") ? basePath + path.substring(1) : basePath + path;
             }
@@ -221,7 +228,7 @@ public class DropwizardResourceConfig extends ResourceConfig {
     }
 
     private static class ComponentLoggingListener implements ApplicationEventListener {
-        final DropwizardResourceConfig config;
+        private final DropwizardResourceConfig config;
 
         public ComponentLoggingListener(DropwizardResourceConfig config) {
             this.config = config;
@@ -230,7 +237,7 @@ public class DropwizardResourceConfig extends ResourceConfig {
         @Override
         public void onEvent(ApplicationEvent event) {
             if (event.getType() == ApplicationEvent.Type.INITIALIZATION_APP_FINISHED) {
-                this.config.logComponents();
+                config.logComponents();
             }
         }
 
